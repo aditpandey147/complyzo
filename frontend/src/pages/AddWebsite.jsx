@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const AddWebsite = () => {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,7 +23,7 @@ const AddWebsite = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:5000/api/websites', 
+      const response = await axios.post(`${API_URL}/websites`, 
         { url },
         { headers: { 'x-auth-token': token } }
       );
