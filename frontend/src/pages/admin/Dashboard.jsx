@@ -169,7 +169,7 @@ const AdminDashboard = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex-1 ml-64 overflow-auto">
+      <div className="flex-1 ml-0 md:ml-[18rem] overflow-auto">
         {/* Header */}
         <div className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-10">
           <div>
