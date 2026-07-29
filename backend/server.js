@@ -63,7 +63,7 @@ app.use('/api/automation', automationRoutes);
 app.use('/api/image', imageAnalyzerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ai-profit', aiProfitRoutes);
-app.use('/api/jvzoo', jvzooRoutes);
+app.use('/api/register/remote', jvzooRoutes);
 app.use('/api/password', require('./routes/passwordReset'));
 app.use('/api/plans', planRoutes);
 app.use('/api/ai-ranker', aiRankerRoutes);
@@ -75,7 +75,7 @@ app.get('/api/test', (req, res) => {
     timestamp: new Date(),
     endpoints: {
       image: '/api/image/test - Check image analyzer',
-      jvzoo: '/api/jvzoo/ipn - JVZoo webhook handler',
+      jvzoo: '/api/register/remote - JVZoo webhook handler',
       auth: '/api/auth - Authentication endpoints',
       scans: '/api/scans - Scan endpoints'
     }
