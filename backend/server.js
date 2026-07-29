@@ -25,7 +25,7 @@ const app = express();
 
 // CORS configuration
 app.use(cors({
-  origin: ['https://complyzo-frontend.vercel.app', 'http://localhost:5173', 'http://localhost:3000'],
+  origin: ['https://complyzo.albinolabs.com'],
   credentials: true,
   optionsSuccessStatus: 200
 }));
