@@ -145,7 +145,7 @@ const Sidebar = () => {
         {/* Logo Section - Premium */}
         <div className="p-5 border-b border-gray-100/80 flex justify-center">
           <Link to="/" className="inline-block group w-[13rem]">
-            <img src={logo} alt="" srcset="complyzo by albinolabs" />
+            <img src={logo} alt="" src="complyzo by albinolabs" />
           </Link>
           {user?.role === "admin" && (
             <span className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-medium text-red-600 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full">
