@@ -23,7 +23,7 @@ const AddWebsite = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/websites`, 
+      const response = await axios.post(`${API_URL}`, 
         { url },
         { headers: { 'x-auth-token': token } }
       );
