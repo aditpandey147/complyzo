@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Use the full URL without any /api prefix issues
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://complyzo.albinolabs.com/api';
 
 const api = axios.create({
   baseURL: API_URL,
