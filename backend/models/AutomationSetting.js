@@ -64,7 +64,7 @@ const automationSettingSchema = new mongoose.Schema({
   }
 });
 
-// ✅ FIXED: Calculate next scan based on automation's timezone
+// ✅ Calculate next scan based on automation's timezone
 automationSettingSchema.methods.calculateNextScan = function() {
   const now = new Date();
   const timezone = this.timezone || 'UTC';
@@ -111,17 +111,6 @@ automationSettingSchema.methods.calculateNextScan = function() {
   return this.nextScanAt;
 };
 
-// ✅ Pre-save hook
-automationSettingSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
-  
-  if (this.scanFrequency && this.scanFrequency !== 'manual') {
-    this.calculateNextScan();
-  } else {
-    this.nextScanAt = null;
-  }
-  
-  next();
-});
+// ❌ NO pre-save hook - removed
 
 module.exports = mongoose.model('AutomationSetting', automationSettingSchema);
