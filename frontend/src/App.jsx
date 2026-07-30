@@ -7,11 +7,13 @@ import PrivateRoute from "./components/PrivateRoute";
 import HomeNavbar from "./components/HomeNavbar";
 import Footer from "./components/Footer";
 
-// Pages
+// Auth
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
+
+//Pages
 import Dashboard from "./pages/Dashboard";
 import AddWebsite from "./pages/AddWebsite";
 import Reports from "./pages/Reports";
@@ -22,6 +24,7 @@ import Insights from "./pages/Insights";
 import AdminDashboard from "./pages/admin/Dashboard";
 
 //oto's//
+import Unlimited from "./pages/Unlimited";
 import AIProfitMachine from "./pages/profit/AIProfitMachine";
 import AIProfitChat from "./pages/profit/AIProfitChat";
 import AIRanker from "./pages/ranker/AIRanker";
@@ -30,6 +33,10 @@ import AIRankerChat from "./pages/ranker/AIRankerChat";
 // DFY - Visual Library
 import VisualLibraryPage from "./components/dfy/VisualLibraryPage";
 import VideoLibraryPage from "./components/dfy/VideoLibraryPage";
+
+//Support
+import Training from "./pages/support/Training";
+import Support from './pages/support/Support';
 
 // ✅ Layout component
 const Layout = ({ children }) => {
@@ -48,14 +55,17 @@ const Layout = ({ children }) => {
     "/ai-profit-machine",
     "/visual-library",
     "/video-library",
-    "/ai-ranker"
+    "/ai-ranker",
+    "/unlimited",
+    "/training",
+    "/support"
   ];
 
   // Check if current path is a dashboard page
   const isDashboardPage =
     dashboardPages.includes(location.pathname) ||
     location.pathname.startsWith("/ai-profit-machine/chat/") ||
-    location.pathname.startsWith("/ai-ranker/chat/")
+    location.pathname.startsWith("/ai-ranker/chat/");
 
   // Pages that should NOT show any navbar
   const authPages = [
@@ -96,6 +106,7 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route path="/support" element={<Support />} />
 
             {/* Protected Dashboard Routes */}
             <Route
@@ -127,6 +138,15 @@ function App() {
               element={
                 <PrivateRoute>
                   <Settings />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/unlimited"
+              element={
+                <PrivateRoute>
+                  <Unlimited />
                 </PrivateRoute>
               }
             />
@@ -220,9 +240,18 @@ function App() {
                       import.meta.env.VITE_PEXELS_API_KEY ||
                       "YOUR_PEXELS_API_KEY"
                     }
-                    defaultQuery="Nature"
+                    defaultQuery="Technology"
                     perPage={12}
                   />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/training"
+              element={
+                <PrivateRoute>
+                  <Training />
                 </PrivateRoute>
               }
             />
