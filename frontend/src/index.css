@@ -41,3 +41,31 @@ body.menu-open {
 .animate-pulse-slow {
   animation: pulse 2s ease-in-out infinite;
 }
+
+/* In your global CSS or component */
+
+/* For WebKit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 0px; /* Reduced width */
+  height: 6px; /* Reduced height for horizontal scroll */
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f100;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c100;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a800;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin; /* Options: auto, thin, none */
+  scrollbar-color: #c1c1c100 #f1f1f100;
+}
