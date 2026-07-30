@@ -45,22 +45,13 @@ const Sidebar = () => {
     { path: "/add-website", label: "Add Website", icon: "fa-plus-circle" },
     { path: "/reports", label: "Reports", icon: "fa-file-alt" },
     { path: "/settings", label: "Settings", icon: "fa-cog" },
-    {
-      path: "/ai-profit-machine",
-      label: "AI Profit Machine",
-      icon: "fa-money-bill-wave",
-    },
-    {
-      path: "/visual-library",
-      label: "DFY Visual Library",
-      icon: "fa-images",
-    },
-    {
-      path: "/video-library",
-      label: "DFY Video Library",
-      icon: "fa-video",
-    },
+    { path: '/unlimited', icon: 'fa-crown', label: 'Unlimited' },
+    { path: "/ai-profit-machine", label: "AI Profit Machine", icon: "fa-money-bill-wave",},
+    { path: "/visual-library", label: "DFY Visual Library", icon: "fa-images",},
+    { path: "/video-library", label: "DFY Video Library", icon: "fa-video",},
     { path: '/ai-ranker', icon: 'fa-chart-line', label: 'AI Ranker' },
+    { path: '/training', icon: 'fa-graduation-cap', label: 'Training' },
+    { path: '/support', icon: 'fa-headset', label: 'Support' },
   ];
 
   const adminNavItem = {
