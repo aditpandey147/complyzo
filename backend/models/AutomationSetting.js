@@ -64,7 +64,7 @@ const automationSettingSchema = new mongoose.Schema({
   }
 });
 
-// ✅ FIXED: Calculate next scan based on automation's timezone
+// ✅ Calculate next scan using manual UTC calculation
 automationSettingSchema.methods.calculateNextScan = function() {
   const now = new Date();
   const timezone = this.timezone || 'UTC';
@@ -74,43 +74,47 @@ automationSettingSchema.methods.calculateNextScan = function() {
   console.log(`   Timezone: ${timezone}`);
   console.log(`   Scan time: ${hours}:${minutes}`);
   
-  // ✅ Get current time components in the target timezone
-  const localNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-  console.log(`   Current time in ${timezone}: ${localNow.toString()}`);
-  
-  // ✅ Create a date object with the target time in the target timezone
-  let nextDate = new Date(localNow);
-  
-  switch(this.scanFrequency) {
-    case 'daily':
-      nextDate.setHours(hours, minutes, 0, 0);
-      if (nextDate <= localNow) {
-        nextDate.setDate(nextDate.getDate() + 1);
-      }
-      break;
-    case 'weekly':
-      const daysUntilMonday = (1 - localNow.getDay() + 7) % 7 || 7;
-      nextDate.setDate(localNow.getDate() + daysUntilMonday);
-      nextDate.setHours(hours, minutes, 0, 0);
-      break;
-    case 'monthly':
-      nextDate.setMonth(localNow.getMonth() + 1);
-      nextDate.setDate(1);
-      nextDate.setHours(hours, minutes, 0, 0);
-      break;
-    default:
-      this.nextScanAt = null;
-      return null;
+  // ✅ Get timezone offset
+  let tzOffset = 0;
+  try {
+    const localStr = now.toLocaleString('en-US', { timeZone: timezone });
+    const utcStr = now.toLocaleString('en-US', { timeZone: 'UTC' });
+    const localTime = new Date(localStr).getTime();
+    const utcTime = new Date(utcStr).getTime();
+    tzOffset = (localTime - utcTime) / (1000 * 60);
+    console.log(`   Timezone offset: ${tzOffset} minutes (${tzOffset/60} hours)`);
+  } catch (error) {
+    console.log(`   ⚠️ Using default offset for ${timezone}`);
   }
   
-  // ✅ Convert to UTC properly by getting the UTC timestamp
-  // The date object is already in local timezone, we need to convert it to UTC
-  const utcDate = new Date(nextDate.getTime() - (nextDate.getTimezoneOffset() * 60000));
+  // ✅ Calculate in minutes
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const localMinutes = utcMinutes + tzOffset;
+  const targetMinutes = hours * 60 + minutes;
   
-  console.log(`   Next scan in ${timezone}: ${nextDate.toString()}`);
-  console.log(`   Next scan in UTC: ${utcDate.toISOString()}`);
+  console.log(`   Current UTC minutes: ${utcMinutes}`);
+  console.log(`   Current local minutes: ${localMinutes}`);
+  console.log(`   Target local minutes: ${targetMinutes}`);
   
-  this.nextScanAt = utcDate;
+  // ✅ Calculate days to add
+  let daysToAdd = 0;
+  if (localMinutes >= targetMinutes) {
+    daysToAdd = 1;
+    console.log(`   Target time passed today, scheduling for tomorrow`);
+  }
+  
+  // ✅ Calculate target UTC time
+  const targetUTC = new Date(now);
+  targetUTC.setUTCDate(targetUTC.getUTCDate() + daysToAdd);
+  targetUTC.setUTCHours(0, 0, 0, 0);
+  
+  // ✅ Add target minutes in local time converted to UTC
+  const targetUTCMinutes = targetMinutes - tzOffset;
+  targetUTC.setUTCMinutes(targetUTCMinutes);
+  
+  console.log(`   Next scan in UTC: ${targetUTC.toISOString()}`);
+  
+  this.nextScanAt = targetUTC;
   return this.nextScanAt;
 };
 
