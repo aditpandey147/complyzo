@@ -20,6 +20,7 @@ const jvzooRoutes = require('./routes/jvzoo');
 const planRoutes = require('./routes/plans');
 const { initializeAllSchedules } = require('./jobs/automationScheduler');
 const aiRankerRoutes = require('./routes/aiRanker');
+const competitorRoutes = require('./routes/competitor');
 
 const app = express();
 
@@ -67,6 +68,7 @@ app.use('/api/register/remote', jvzooRoutes);
 app.use('/api/password', require('./routes/passwordReset'));
 app.use('/api/plans', planRoutes);
 app.use('/api/ai-ranker', aiRankerRoutes);
+app.use('/api/competitor', competitorRoutes);
 
 // Test route
 app.get('/api/test', (req, res) => {
