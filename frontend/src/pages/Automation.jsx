@@ -4,6 +4,52 @@ import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import toast from "react-hot-toast";
 
+// ✅ Add timezone detection function
+const detectUserTimezone = () => {
+  try {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (timezone) return timezone;
+  } catch (error) {
+    console.log('Intl API failed:', error);
+  }
+
+  // Fallback: Use offset
+  try {
+    const offset = -new Date().getTimezoneOffset() / 60;
+    const timezoneMap = {
+      '-12': 'Pacific/Kwajalein',
+      '-11': 'Pacific/Midway',
+      '-10': 'Pacific/Honolulu',
+      '-9': 'America/Anchorage',
+      '-8': 'America/Los_Angeles',
+      '-7': 'America/Denver',
+      '-6': 'America/Chicago',
+      '-5': 'America/New_York',
+      '-4': 'America/Halifax',
+      '-3': 'America/Sao_Paulo',
+      '-2': 'Atlantic/South_Georgia',
+      '-1': 'Atlantic/Azores',
+      '0': 'Europe/London',
+      '1': 'Europe/Paris',
+      '2': 'Europe/Athens',
+      '3': 'Asia/Baghdad',
+      '4': 'Asia/Dubai',
+      '5': 'Asia/Kolkata',
+      '5.5': 'Asia/Kolkata',
+      '6': 'Asia/Dhaka',
+      '7': 'Asia/Bangkok',
+      '8': 'Asia/Singapore',
+      '9': 'Asia/Tokyo',
+      '10': 'Australia/Sydney',
+      '11': 'Pacific/Noumea',
+      '12': 'Pacific/Auckland'
+    };
+    return timezoneMap[String(offset)] || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+};
+
 const Automation = () => {
   const [websites, setWebsites] = useState([]);
   const [selectedWebsite, setSelectedWebsite] = useState(null);
@@ -15,8 +61,15 @@ const Automation = () => {
   const [stats, setStats] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  // ✅ Add user timezone state
+  const [userTimezone, setUserTimezone] = useState('UTC');
 
   useEffect(() => {
+    // ✅ Auto-detect timezone on load
+    const detected = detectUserTimezone();
+    setUserTimezone(detected);
+    console.log('📍 Auto-detected timezone:', detected);
+    
     fetchWebsites();
     fetchAutomationSettings();
     fetchStats();
@@ -48,10 +101,7 @@ const Automation = () => {
       const response = await api.get("/automation/settings");
       console.log("📥 Settings response:", response.data);
       
-      // ✅ Ensure we set the settings even if empty
       setAutomationSettings(response.data || {});
-      
-      // ✅ Log what we got
       console.log("📋 Settings keys:", Object.keys(response.data || {}));
       console.log("📋 Settings count:", Object.keys(response.data || {}).length);
       
@@ -115,8 +165,21 @@ const Automation = () => {
     try {
       console.log("📤 Saving settings:", automationSettings);
       
+      // ✅ Auto-detect timezone silently and add to all settings
+      const timezone = detectUserTimezone();
+      const settingsWithTimezone = {};
+      
+      for (const [websiteId, setting] of Object.entries(automationSettings)) {
+        settingsWithTimezone[websiteId] = {
+          ...setting,
+          timezone: timezone // ✅ Add auto-detected timezone
+        };
+      }
+      
+      console.log("📤 Saving with timezone:", timezone);
+      
       const response = await api.post("/automation/settings", {
-        settings: automationSettings,
+        settings: settingsWithTimezone,
       });
 
       console.log("📥 Save response:", response.data);
@@ -203,11 +266,11 @@ const Automation = () => {
         notifications: { email: true, whatsapp: false, criticalOnly: true },
         isActive: false,
         nextScanAt: null,
+        timezone: userTimezone, // ✅ Add timezone to default
       }
     );
   };
 
-  // ✅ Get active automations with proper check
   const getActiveAutomations = () => {
     console.log("🔍 Getting active automations from:", automationSettings);
     const entries = Object.entries(automationSettings || {});
@@ -371,7 +434,6 @@ const Automation = () => {
                   </div>
 
                   <div className="p-3 max-h-[500px] overflow-y-auto">
-                    {/* ✅ Show a message if no automations */}
                     {activeAutomations.length === 0 ? (
                       <div className="text-center py-8">
                         <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
