@@ -1,4 +1,4 @@
-// backend/routes/automation.js
+// backend/routes/automation.js - Updated save route
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
@@ -96,6 +96,7 @@ router.post('/settings', auth, async (req, res) => {
         setting.scanTime = websiteSettings.scanTime || '09:00';
         setting.updatedAt = new Date();
         
+        // ✅ Manually calculate next scan
         if (isActive) {
           setting.calculateNextScan();
           console.log(`   📅 Next scan: ${setting.nextScanAt}`);
@@ -121,6 +122,7 @@ router.post('/settings', auth, async (req, res) => {
           nextScanAt: null
         });
         
+        // ✅ Manually calculate next scan
         if (isActive) {
           newSetting.calculateNextScan();
           console.log(`   📅 Next scan: ${newSetting.nextScanAt}`);
