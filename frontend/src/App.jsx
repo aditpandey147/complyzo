@@ -21,6 +21,9 @@ import Settings from "./pages/Settings";
 import AIFixer from "./pages/zo";
 import Automation from "./pages/Automation";
 import Insights from "./pages/Insights";
+import CompetitorAnalysis from "./pages/CompetitorAnalysis";
+
+//Admin
 import AdminDashboard from "./pages/admin/Dashboard";
 
 //oto's//
@@ -36,7 +39,7 @@ import VideoLibraryPage from "./components/dfy/VideoLibraryPage";
 
 //Support
 import Training from "./pages/support/Training";
-import Support from './pages/support/Support';
+import Support from "./pages/support/Support";
 
 // ✅ Layout component
 const Layout = ({ children }) => {
@@ -58,7 +61,8 @@ const Layout = ({ children }) => {
     "/ai-ranker",
     "/unlimited",
     "/training",
-    "/support"
+    "/support",
+    "/competitor-analysis",
   ];
 
   // Check if current path is a dashboard page
@@ -252,6 +256,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <Training />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/competitor-analysis"
+              element={
+                <PrivateRoute>
+                  <CompetitorAnalysis />
                 </PrivateRoute>
               }
             />
