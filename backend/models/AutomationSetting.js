@@ -1,3 +1,4 @@
+// backend/models/AutomationSetting.js - Alternative version without pre-save hook
 const mongoose = require('mongoose');
 
 const automationSettingSchema = new mongoose.Schema({
@@ -17,6 +18,15 @@ const automationSettingSchema = new mongoose.Schema({
     type: String,
     enum: ['daily', 'weekly', 'monthly', 'manual'],
     default: 'manual'
+  },
+  timezone: {
+    type: String,
+    default: 'UTC'
+  },
+  scanTime: {
+    type: String,
+    default: '09:00',
+    match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
   },
   notifications: {
     email: {
@@ -54,45 +64,40 @@ const automationSettingSchema = new mongoose.Schema({
   }
 });
 
-// ✅ FIX 1: Use async/await WITHOUT next parameter
-automationSettingSchema.pre('save', async function() {
-  this.updatedAt = new Date();
-  // No next() needed with async
-});
-
-// ✅ FIX 2: OR use regular function WITH next parameter
-// automationSettingSchema.pre('save', function(next) {
-//   this.updatedAt = new Date();
-//   next();
-// });
-
-// ✅ Calculate next scan date
+// ✅ Calculate next scan
 automationSettingSchema.methods.calculateNextScan = function() {
   const now = new Date();
-  let nextDate = new Date(now);
+  const timezone = this.timezone || 'UTC';
+  const [hours, minutes] = (this.scanTime || '09:00').split(':').map(Number);
+  
+  const localNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+  let nextDate = new Date(localNow);
   
   switch(this.scanFrequency) {
     case 'daily':
-      nextDate.setDate(now.getDate() + 1);
-      nextDate.setHours(9, 0, 0, 0);
+      nextDate.setHours(hours, minutes, 0, 0);
+      if (nextDate <= localNow) {
+        nextDate.setDate(nextDate.getDate() + 1);
+      }
       break;
     case 'weekly':
-      const daysUntilMonday = (1 - now.getDay() + 7) % 7 || 7;
-      nextDate.setDate(now.getDate() + daysUntilMonday);
-      nextDate.setHours(9, 0, 0, 0);
+      const daysUntilMonday = (1 - localNow.getDay() + 7) % 7 || 7;
+      nextDate.setDate(localNow.getDate() + daysUntilMonday);
+      nextDate.setHours(hours, minutes, 0, 0);
       break;
     case 'monthly':
-      nextDate.setMonth(now.getMonth() + 1);
+      nextDate.setMonth(localNow.getMonth() + 1);
       nextDate.setDate(1);
-      nextDate.setHours(9, 0, 0, 0);
+      nextDate.setHours(hours, minutes, 0, 0);
       break;
     default:
       this.nextScanAt = null;
       return null;
   }
   
-  this.nextScanAt = nextDate;
-  return nextDate;
+  this.nextScanAt = new Date(nextDate.toISOString());
+  return this.nextScanAt;
 };
 
+// ✅ NO pre-save hook - handle calculation manually in routes
 module.exports = mongoose.model('AutomationSetting', automationSettingSchema);
