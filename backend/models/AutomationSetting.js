@@ -64,7 +64,7 @@ const automationSettingSchema = new mongoose.Schema({
   }
 });
 
-// ✅ Calculate next scan based on automation's timezone
+// ✅ FIXED: Calculate next scan based on automation's timezone
 automationSettingSchema.methods.calculateNextScan = function() {
   const now = new Date();
   const timezone = this.timezone || 'UTC';
@@ -74,10 +74,11 @@ automationSettingSchema.methods.calculateNextScan = function() {
   console.log(`   Timezone: ${timezone}`);
   console.log(`   Scan time: ${hours}:${minutes}`);
   
-  // ✅ Get current time in the automation's timezone
+  // ✅ Get current time components in the target timezone
   const localNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-  console.log(`   Current time in ${timezone}: ${localNow.toISOString()}`);
+  console.log(`   Current time in ${timezone}: ${localNow.toString()}`);
   
+  // ✅ Create a date object with the target time in the target timezone
   let nextDate = new Date(localNow);
   
   switch(this.scanFrequency) {
@@ -102,15 +103,15 @@ automationSettingSchema.methods.calculateNextScan = function() {
       return null;
   }
   
-  console.log(`   Next scan in ${timezone}: ${nextDate.toISOString()}`);
+  // ✅ Convert to UTC properly by getting the UTC timestamp
+  // The date object is already in local timezone, we need to convert it to UTC
+  const utcDate = new Date(nextDate.getTime() - (nextDate.getTimezoneOffset() * 60000));
   
-  // ✅ Convert to UTC for storage
-  this.nextScanAt = new Date(nextDate.toISOString());
-  console.log(`   Next scan in UTC: ${this.nextScanAt.toISOString()}`);
+  console.log(`   Next scan in ${timezone}: ${nextDate.toString()}`);
+  console.log(`   Next scan in UTC: ${utcDate.toISOString()}`);
   
+  this.nextScanAt = utcDate;
   return this.nextScanAt;
 };
-
-// ❌ NO pre-save hook - removed
 
 module.exports = mongoose.model('AutomationSetting', automationSettingSchema);
