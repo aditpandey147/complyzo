@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { NavLink, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
@@ -9,6 +9,19 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const [planName, setPlanName] = useState(user?.planName || "Free");
   const [planLoading, setPlanLoading] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // ✅ Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // ✅ Fetch plan name from Plan table based on planId
   useEffect(() => {
@@ -63,6 +76,10 @@ const Sidebar = () => {
   const handleLogout = async () => {
     await logout();
     navigate("/login");
+  };
+
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen);
   };
 
   const getPlanColor = (planName) => {
@@ -215,60 +232,96 @@ const Sidebar = () => {
           </div>
         </nav>
 
-        {/* User Info - Premium Footer */}
+        {/* User Info - Premium Footer with Dropdown */}
         <div className="p-4 mt-auto border-t border-gray-100/80 bg-gradient-to-b from-white to-gray-50/50">
           {user && (
-            <div className="relative mb-3 p-3 bg-white rounded-xl shadow-sm border border-gray-100/80">
-              {/* Decorative accent */}
-              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 rounded-full blur-xl"></div>
-              
-              <div className="relative flex items-center gap-3">
-                <div className="relative flex-shrink-0">
-                  <div className="w-10 h-10 bg-gradient-to-br from-gray-700 to-gray-900 rounded-xl flex items-center justify-center shadow-md">
-                    <span className="text-white text-sm font-bold">
-                      {user?.name?.charAt(0)?.toUpperCase() || "U"}
-                    </span>
+            <div className="relative">
+              {/* User Profile Button - Click to toggle dropdown */}
+              <button
+                onClick={toggleDropdown}
+                className="w-full text-left p-3 bg-white rounded-xl shadow-sm border border-gray-100/80 hover:shadow-md transition-all duration-200 group"
+              >
+                <div className="relative flex items-center gap-3">
+                  <div className="relative flex-shrink-0">
+                    <div className="w-10 h-10 bg-gradient-to-br from-gray-700 to-gray-900 rounded-xl flex items-center justify-center shadow-md">
+                      <span className="text-white text-sm font-bold">
+                        {user?.name?.charAt(0)?.toUpperCase() || "U"}
+                      </span>
+                    </div>
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-400 border-2 border-white rounded-full"></span>
                   </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-400 border-2 border-white rounded-full"></span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 truncate">
+                      {user?.name || "User"}
+                    </p>
+                    <p className="text-[11px] text-gray-400 truncate">
+                      {user?.email || "No email"}
+                    </p>
+                  </div>
+                  <i className={`fas fa-chevron-down text-gray-400 text-xs transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-800 truncate">
-                    {user?.name || "User"}
-                  </p>
-                  <p className="text-[11px] text-gray-400 truncate">
-                    {user?.email || "No email"}
-                  </p>
-                </div>
-              </div>
 
-              {/* Plan Badge */}
-              <div className="relative mt-3 flex items-center gap-2">
-                {planLoading ? (
-                  <span className="text-[10px] text-gray-400">Loading plan...</span>
-                ) : (
-                  <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1 rounded-full ${getPlanColor(planName)}`}>
-                    <i className={`fas ${getPlanIcon(planName)} text-[8px]`}></i>
-                    {planName}
-                  </span>
-                )}
-                {user?.role === "admin" && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-50 px-2.5 py-1 rounded-full">
-                    <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                    Admin
-                  </span>
-                )}
-              </div>
+                {/* Plan Badge */}
+                <div className="relative mt-2 flex items-center gap-2">
+                  {planLoading ? (
+                    <span className="text-[10px] text-gray-400">Loading plan...</span>
+                  ) : (
+                    <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1 rounded-full ${getPlanColor(planName)}`}>
+                      <i className={`fas ${getPlanIcon(planName)} text-[8px]`}></i>
+                      {planName}
+                    </span>
+                  )}
+                  {user?.role === "admin" && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-50 px-2.5 py-1 rounded-full">
+                      <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                      Admin
+                    </span>
+                  )}
+                </div>
+              </button>
+
+              {/* Dropdown Menu */}
+              {isDropdownOpen && (
+                <div 
+                  ref={dropdownRef}
+                  className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden animate-slide-up"
+                >
+                  <div className="p-2">
+                    <NavLink
+                      to="/settings"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200"
+                    >
+                      <i className="fas fa-cog text-sm w-5 text-center"></i>
+                      <span className="font-medium">Settings</span>
+                    </NavLink>
+
+                    {/* Support Link */}
+                    <NavLink
+                      to="/support"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200"
+                    >
+                      <i className="fas fa-headset text-sm w-5 text-center"></i>
+                      <span className="font-medium">Support</span>
+                    </NavLink>
+
+                    <div className="h-px bg-gray-100 my-1"></div>
+
+                    {/* Logout Button */}
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-all duration-200"
+                    >
+                      <i className="fas fa-sign-out-alt text-sm w-5 text-center"></i>
+                      <span className="font-medium">Logout</span>
+                      <span className="ml-auto text-[10px] text-red-400">→</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-
-          {/* Logout Button - Premium */}
-          <button
-            onClick={handleLogout}
-            className="group relative w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200/80 rounded-xl hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all duration-300 shadow-sm hover:shadow-md"
-          >
-            <i className="fas fa-sign-out-alt text-sm transition-transform duration-300 group-hover:rotate-12"></i>
-            <span>Logout</span>
-          </button>
         </div>
       </aside>
 
@@ -293,6 +346,22 @@ const Sidebar = () => {
           ))}
         </div>
       </nav>
+
+      <style jsx>{`
+        @keyframes slide-up {
+          from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.2s ease-out forwards;
+        }
+      `}</style>
     </>
   );
 };
