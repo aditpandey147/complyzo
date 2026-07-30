@@ -1,3 +1,4 @@
+// pages/admin/Dashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -10,21 +11,30 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
+  const [plans, setPlans] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
+  const [paymentSearch, setPaymentSearch] = useState('');
 
   // Modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeletePlanModal, setShowDeletePlanModal] = useState(false);
+  const [showAddPlanModal, setShowAddPlanModal] = useState(false);
+  const [showEditPlanModal, setShowEditPlanModal] = useState(false);
+  const [showPaymentDetailModal, setShowPaymentDetailModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [selectedPayment, setSelectedPayment] = useState(null);
   
   // Edit form state
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
-    plan: 'free',
+    planId: 1,
     isActive: true,
     role: 'user',
   });
@@ -34,11 +44,25 @@ const AdminDashboard = () => {
     name: '',
     email: '',
     password: '',
-    plan: 'free',
+    planId: 1,
     role: 'user'
   });
+
+  // Plan form state
+  const [planForm, setPlanForm] = useState({
+    name: '',
+    slug: '',
+    planId: '',
+    jvzoo_id: '',
+    launchpad_id: '',
+    validity_days: 365,
+    status: 'active',
+    order: 0
+  });
+
   const [addingUser, setAddingUser] = useState(false);
   const [savingUser, setSavingUser] = useState(false);
+  const [savingPlan, setSavingPlan] = useState(false);
 
   useEffect(() => {
     if (user?.role !== 'admin') {
@@ -47,6 +71,8 @@ const AdminDashboard = () => {
     }
     fetchStats();
     fetchUsers();
+    fetchPlans();
+    fetchPayments();
   }, [user]);
 
   const fetchStats = async () => {
@@ -69,6 +95,26 @@ const AdminDashboard = () => {
       setLoading(false);
     }
   };
+
+  const fetchPlans = async () => {
+    try {
+      const response = await api.get('/plans');
+      setPlans(response.data);
+    } catch (error) {
+      console.error('Plans error:', error);
+    }
+  };
+
+  const fetchPayments = async () => {
+    try {
+      const response = await api.get('/admin/payments');
+      setPayments(response.data);
+    } catch (error) {
+      console.error('Payments error:', error);
+    }
+  };
+
+  // ==================== USER MANAGEMENT ====================
 
   const openDeleteModal = (user) => {
     setSelectedUser(user);
@@ -95,7 +141,7 @@ const AdminDashboard = () => {
     setEditForm({
       name: user.name || '',
       email: user.email || '',
-      plan: user.plan || 'free',
+      planId: user.planId || 1,
       isActive: user.isActive !== false,
       role: user.role || 'user',
     });
@@ -112,7 +158,7 @@ const AdminDashboard = () => {
       await api.put(`/admin/users/${selectedUser._id}`, {
         name: editForm.name,
         email: editForm.email,
-        plan: editForm.plan,
+        planId: editForm.planId,
         isActive: editForm.isActive,
         role: editForm.role,
       });
@@ -137,7 +183,7 @@ const AdminDashboard = () => {
       await api.post('/admin/users', addForm);
       toast.success('User created successfully!');
       setShowAddModal(false);
-      setAddForm({ name: '', email: '', password: '', plan: 'free', role: 'user' });
+      setAddForm({ name: '', email: '', password: '', planId: 1, role: 'user' });
       fetchUsers();
       fetchStats();
     } catch (error) {
@@ -157,14 +203,114 @@ const AdminDashboard = () => {
     }
   };
 
+  // ==================== PLAN MANAGEMENT ====================
+
+  const openAddPlanModal = () => {
+    setPlanForm({
+      name: '',
+      slug: '',
+      planId: '',
+      jvzoo_id: '',
+      launchpad_id: '',
+      validity_days: 365,
+      status: 'active',
+      order: 0
+    });
+    setShowAddPlanModal(true);
+  };
+
+  const openEditPlanModal = (plan) => {
+    setSelectedPlan(plan);
+    setPlanForm({
+      name: plan.name || '',
+      slug: plan.slug || '',
+      planId: plan.planId || '',
+      jvzoo_id: plan.jvzoo_id || '',
+      launchpad_id: plan.launchpad_id || '',
+      validity_days: plan.validity_days || 365,
+      status: plan.status || 'active',
+      order: plan.order || 0
+    });
+    setShowEditPlanModal(true);
+  };
+
+  const openDeletePlanModal = (plan) => {
+    setSelectedPlan(plan);
+    setShowDeletePlanModal(true);
+  };
+
+  const handleAddPlan = async (e) => {
+    e.preventDefault();
+    setSavingPlan(true);
+
+    try {
+      await api.post('/admin/plans', planForm);
+      toast.success('Plan created successfully!');
+      setShowAddPlanModal(false);
+      fetchPlans();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to create plan');
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
+  const handleEditPlan = async (e) => {
+    e.preventDefault();
+    if (!selectedPlan) return;
+    setSavingPlan(true);
+
+    try {
+      await api.put(`/admin/plans/${selectedPlan._id}`, planForm);
+      toast.success('Plan updated successfully!');
+      setShowEditPlanModal(false);
+      setSelectedPlan(null);
+      fetchPlans();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update plan');
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
+  const handleDeletePlan = async () => {
+    if (!selectedPlan) return;
+
+    try {
+      await api.delete(`/admin/plans/${selectedPlan._id}`);
+      toast.success('Plan deleted successfully');
+      setShowDeletePlanModal(false);
+      setSelectedPlan(null);
+      fetchPlans();
+    } catch (error) {
+      toast.error('Failed to delete plan');
+    }
+  };
+
+  // ==================== PAYMENT MANAGEMENT ====================
+
+  const openPaymentDetail = (payment) => {
+    setSelectedPayment(payment);
+    setShowPaymentDetailModal(true);
+  };
+
+  const getPlanName = (planId) => {
+    const plan = plans.find(p => p.planId === planId);
+    return plan ? plan.name : `Plan ${planId}`;
+  };
+
   const filteredUsers = users.filter(u => 
     u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (user?.role !== 'admin') return null;
+  const filteredPayments = payments.filter(p => 
+    p.buyerEmail?.toLowerCase().includes(paymentSearch.toLowerCase()) ||
+    p.transactionId?.toLowerCase().includes(paymentSearch.toLowerCase()) ||
+    p.buyerName?.toLowerCase().includes(paymentSearch.toLowerCase())
+  );
 
-  const planOptions = ['free', 'starter', 'pro', 'growth', 'enterprise'];
+  if (user?.role !== 'admin') return null;
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -174,7 +320,7 @@ const AdminDashboard = () => {
         <div className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-10">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="text-sm text-gray-500">Manage users and monitor platform</p>
+            <p className="text-sm text-gray-500">Manage users, plans, and monitor platform</p>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">{user?.email}</span>
@@ -187,9 +333,11 @@ const AdminDashboard = () => {
 
         <div className="p-6">
           {/* Tabs */}
-          <div className="flex gap-1 mb-6 bg-white rounded-lg border p-1 w-fit">
+          <div className="flex gap-1 mb-6 bg-white rounded-lg border p-1 w-fit flex-wrap">
             <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'overview' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:text-gray-900'}`}>Overview</button>
             <button onClick={() => setActiveTab('users')} className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'users' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:text-gray-900'}`}>Users</button>
+            <button onClick={() => setActiveTab('plans')} className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'plans' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:text-gray-900'}`}>Plans</button>
+            <button onClick={() => setActiveTab('payments')} className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'payments' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:text-gray-900'}`}>Payments</button>
           </div>
 
           {/* Overview Tab */}
@@ -199,11 +347,11 @@ const AdminDashboard = () => {
                 <StatCard icon="fa-users" color="blue" value={stats.totalUsers} label="Total Users" />
                 <StatCard icon="fa-user-check" color="green" value={stats.activeUsers} label="Active Users (7d)" />
                 <StatCard icon="fa-globe" color="purple" value={stats.totalWebsites} label="Total Websites" />
-                <StatCard icon="fa-search" color="orange" value={stats.totalScans} label="Total Scans" />
+                <StatCard icon="fa-search" color="orange" value={stats.totalScans || 0} label="Total Scans" />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <MiniStat value={stats.newUsersThisMonth} label="New Users" color="text-green-600" />
-                <MiniStat value={stats.scansToday} label="Scans Today" color="text-blue-600" />
+                <MiniStat value={stats.scansToday || 0} label="Scans Today" color="text-blue-600" />
                 <MiniStat value={stats.totalAdmins} label="Admins" color="text-purple-600" />
               </div>
             </div>
@@ -222,8 +370,8 @@ const AdminDashboard = () => {
                 </button>
               </div>
 
-              <div className="bg-white rounded-xl border overflow-hidden">
-                <table className="w-full">
+              <div className="bg-white rounded-xl border overflow-x-auto">
+                <table className="w-full min-w-[600px]">
                   <thead>
                     <tr className="border-b bg-gray-50">
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">User</th>
@@ -254,7 +402,9 @@ const AdminDashboard = () => {
                             <span className={`text-xs px-2 py-1 rounded-full font-medium ${u.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{u.role}</span>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${u.plan === 'pro' || u.plan === 'growth' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{u.plan}</span>
+                            <span className="text-xs px-2 py-1 rounded-full font-medium bg-purple-100 text-purple-700">
+                              {getPlanName(u.planId)}
+                            </span>
                           </td>
                           <td className="px-4 py-3 text-center">
                             <button onClick={() => handleToggleStatus(u._id)} className={`text-xs px-2 py-1 rounded-full font-medium ${u.isActive !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -275,10 +425,147 @@ const AdminDashboard = () => {
               </div>
             </div>
           )}
+
+          {/* Plans Tab */}
+          {activeTab === 'plans' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-500">{plans.length} plans</span>
+                </div>
+                <button onClick={openAddPlanModal} className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition">
+                  <i className="fa-solid fa-plus text-xs"></i> Add Plan
+                </button>
+              </div>
+
+              <div className="bg-white rounded-xl border overflow-x-auto">
+                <table className="w-full min-w-[700px]">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">ID</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Name</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Slug</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">JVZoo ID</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">LaunchPad ID</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Validity</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {plans.length === 0 ? (
+                      <tr><td colSpan="8" className="px-4 py-12 text-center text-gray-500">No plans found</td></tr>
+                    ) : (
+                      plans.map((p) => (
+                        <tr key={p._id} className="hover:bg-gray-50 transition">
+                          <td className="px-4 py-3 text-sm text-gray-900">{p.planId}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{p.name}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{p.slug}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{p.jvzoo_id || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{p.launchpad_id || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-center text-gray-500">{p.validity_days} days</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${p.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {p.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              <button onClick={() => openEditPlanModal(p)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">Edit</button>
+                              <button onClick={() => openDeletePlanModal(p)} className="text-xs text-red-600 hover:text-red-800 font-medium">Delete</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Payments Tab */}
+          {activeTab === 'payments' && (
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-1 relative">
+                  <input type="text" placeholder="Search payments by email, transaction ID, or name..." value={paymentSearch} onChange={(e) => setPaymentSearch(e.target.value)} className="w-full px-4 py-2 pl-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                  <i className="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+                <span className="text-sm text-gray-500 whitespace-nowrap">{filteredPayments.length} payments</span>
+              </div>
+
+              <div className="bg-white rounded-xl border overflow-x-auto">
+                <table className="w-full min-w-[800px]">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Transaction</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Buyer</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Plan</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Platform</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filteredPayments.length === 0 ? (
+                      <tr><td colSpan="8" className="px-4 py-12 text-center text-gray-500">No payments found</td></tr>
+                    ) : (
+                      filteredPayments.map((p) => (
+                        <tr key={p._id} className="hover:bg-gray-50 transition">
+                          <td className="px-4 py-3">
+                            <div className="text-sm font-medium text-gray-900 truncate max-w-[150px]" title={p.transactionId}>
+                              {p.transactionId}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{p.buyerName}</p>
+                              <p className="text-xs text-gray-500">{p.buyerEmail}</p>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-xs px-2 py-1 rounded-full font-medium bg-purple-100 text-purple-700">
+                              {p.purchasedPlanName || getPlanName(p.purchasedPlanId)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${p.platform === 'jvzoo' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                              {p.platform || 'unknown'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">
+                            ${p.amount?.toFixed(2) || '0.00'}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${p.status === 'completed' ? 'bg-green-100 text-green-700' : p.status === 'refunded' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                              {p.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center text-sm text-gray-500">
+                            {new Date(p.paymentDate || p.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button onClick={() => openPaymentDetail(p)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                              View IPN Data
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Delete Modal */}
+      {/* ==================== MODALS ==================== */}
+
+      {/* Delete User Modal */}
       {showDeleteModal && selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)}></div>
@@ -314,19 +601,14 @@ const AdminDashboard = () => {
             </div>
 
             <form onSubmit={handleEditUser} className="space-y-4">
-              {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
                 <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" required />
               </div>
-
-              {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
                 <input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" required />
               </div>
-
-              {/* Role & Plan */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
@@ -337,15 +619,13 @@ const AdminDashboard = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Plan</label>
-                  <select value={editForm.plan} onChange={(e) => setEditForm({ ...editForm, plan: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900">
-                    {planOptions.map(p => (
-                      <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                  <select value={editForm.planId} onChange={(e) => setEditForm({ ...editForm, planId: parseInt(e.target.value) })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900">
+                    {plans.map(plan => (
+                      <option key={plan._id} value={plan.planId}>{plan.name}</option>
                     ))}
                   </select>
                 </div>
               </div>
-
-              {/* Active Toggle */}
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-gray-900">Account Active</p>
@@ -355,8 +635,6 @@ const AdminDashboard = () => {
                   <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${editForm.isActive ? 'translate-x-5' : ''}`}></span>
                 </button>
               </div>
-
-              {/* Buttons */}
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancel</button>
                 <button type="submit" disabled={savingUser} className="flex-1 px-4 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition disabled:opacity-50">
@@ -406,9 +684,9 @@ const AdminDashboard = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Plan</label>
-                  <select value={addForm.plan} onChange={(e) => setAddForm({ ...addForm, plan: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900">
-                    {planOptions.map(p => (
-                      <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                  <select value={addForm.planId} onChange={(e) => setAddForm({ ...addForm, planId: parseInt(e.target.value) })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900">
+                    {plans.map(plan => (
+                      <option key={plan._id} value={plan.planId}>{plan.name}</option>
                     ))}
                   </select>
                 </div>
@@ -420,6 +698,234 @@ const AdminDashboard = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Plan Modal */}
+      {showDeletePlanModal && selectedPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDeletePlanModal(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="fa-solid fa-trash text-red-600 text-xl"></i>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Delete Plan?</h3>
+              <p className="text-sm text-gray-500 mt-2">This will permanently delete <strong>{selectedPlan.name}</strong> from the system.</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeletePlanModal(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancel</button>
+              <button onClick={handleDeletePlan} className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Plan Modal */}
+      {showAddPlanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddPlanModal(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Add New Plan</h3>
+                <p className="text-sm text-gray-500">Create a new subscription plan</p>
+              </div>
+              <button onClick={() => setShowAddPlanModal(false)} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition">
+                <i className="fa-solid fa-xmark text-gray-500"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleAddPlan} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Plan Name *</label>
+                <input type="text" value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} placeholder="Healtrics Pro" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Slug *</label>
+                <input type="text" value={planForm.slug} onChange={(e) => setPlanForm({ ...planForm, slug: e.target.value.toLowerCase().replace(/\s/g, '-') })} placeholder="healtrics-pro" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" required />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Plan ID</label>
+                  <input type="number" value={planForm.planId} onChange={(e) => setPlanForm({ ...planForm, planId: e.target.value })} placeholder="1" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Validity (days)</label>
+                  <input type="number" value={planForm.validity_days} onChange={(e) => setPlanForm({ ...planForm, validity_days: parseInt(e.target.value) })} placeholder="365" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">JVZoo ID</label>
+                  <input type="text" value={planForm.jvzoo_id} onChange={(e) => setPlanForm({ ...planForm, jvzoo_id: e.target.value })} placeholder="444615" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">LaunchPad ID</label>
+                  <input type="text" value={planForm.launchpad_id} onChange={(e) => setPlanForm({ ...planForm, launchpad_id: e.target.value })} placeholder="lp_healthrics_pro" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+                  <select value={planForm.status} onChange={(e) => setPlanForm({ ...planForm, status: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Order</label>
+                  <input type="number" value={planForm.order} onChange={(e) => setPlanForm({ ...planForm, order: parseInt(e.target.value) })} placeholder="0" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowAddPlanModal(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancel</button>
+                <button type="submit" disabled={savingPlan} className="flex-1 px-4 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition disabled:opacity-50">
+                  {savingPlan ? 'Creating...' : 'Create Plan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Plan Modal */}
+      {showEditPlanModal && selectedPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowEditPlanModal(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Edit Plan</h3>
+                <p className="text-sm text-gray-500">Update plan details</p>
+              </div>
+              <button onClick={() => setShowEditPlanModal(false)} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition">
+                <i className="fa-solid fa-xmark text-gray-500"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleEditPlan} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Plan Name *</label>
+                <input type="text" value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Slug *</label>
+                <input type="text" value={planForm.slug} onChange={(e) => setPlanForm({ ...planForm, slug: e.target.value.toLowerCase().replace(/\s/g, '-') })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" required />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Plan ID</label>
+                  <input type="number" value={planForm.planId} onChange={(e) => setPlanForm({ ...planForm, planId: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Validity (days)</label>
+                  <input type="number" value={planForm.validity_days} onChange={(e) => setPlanForm({ ...planForm, validity_days: parseInt(e.target.value) })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">JVZoo ID</label>
+                  <input type="text" value={planForm.jvzoo_id} onChange={(e) => setPlanForm({ ...planForm, jvzoo_id: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">LaunchPad ID</label>
+                  <input type="text" value={planForm.launchpad_id} onChange={(e) => setPlanForm({ ...planForm, launchpad_id: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+                  <select value={planForm.status} onChange={(e) => setPlanForm({ ...planForm, status: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Order</label>
+                  <input type="number" value={planForm.order} onChange={(e) => setPlanForm({ ...planForm, order: parseInt(e.target.value) })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowEditPlanModal(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancel</button>
+                <button type="submit" disabled={savingPlan} className="flex-1 px-4 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition disabled:opacity-50">
+                  {savingPlan ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Detail Modal */}
+      {showPaymentDetailModal && selectedPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowPaymentDetailModal(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Payment Details</h3>
+                <p className="text-sm text-gray-500">Transaction ID: {selectedPayment.transactionId}</p>
+              </div>
+              <button onClick={() => setShowPaymentDetailModal(false)} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition">
+                <i className="fa-solid fa-xmark text-gray-500"></i>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500">Buyer</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPayment.buyerName}</p>
+                  <p className="text-xs text-gray-500">{selectedPayment.buyerEmail}</p>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500">Amount</p>
+                  <p className="text-sm font-bold text-gray-900">${selectedPayment.amount?.toFixed(2)}</p>
+                  <p className="text-xs text-gray-500">{selectedPayment.currency}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500">Platform</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPayment.platform || 'Unknown'}</p>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500">Status</p>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${selectedPayment.status === 'completed' ? 'bg-green-100 text-green-700' : selectedPayment.status === 'refunded' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                    {selectedPayment.status}
+                  </span>
+                </div>
+              </div>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-xs text-gray-500">Plan</p>
+                <p className="text-sm font-medium text-gray-900">{selectedPayment.purchasedPlanName || getPlanName(selectedPayment.purchasedPlanId)}</p>
+                <p className="text-xs text-gray-500">Validity: {selectedPayment.validityDays || 365} days</p>
+              </div>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-xs text-gray-500">Payment Date</p>
+                <p className="text-sm text-gray-900">{new Date(selectedPayment.paymentDate || selectedPayment.createdAt).toLocaleString()}</p>
+              </div>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-xs text-gray-500">Product</p>
+                <p className="text-sm text-gray-900">{selectedPayment.productName}</p>
+                <p className="text-xs text-gray-500">Product ID: {selectedPayment.productId}</p>
+              </div>
+              {selectedPayment.ipnData && (
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-2">IPN Data (Raw)</p>
+                  <pre className="text-xs bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto max-h-[200px] overflow-y-auto">
+                    {JSON.stringify(selectedPayment.ipnData, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button onClick={() => setShowPaymentDetailModal(false)} className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition">
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
