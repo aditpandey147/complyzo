@@ -389,7 +389,7 @@ const Login = () => {
           <p className="text-center text-sm text-gray-500 mt-6">
             Need support?{" "}
             <a
-              href="/support"
+              href="/support" target="_blank"
               className="text-blue-600 font-semibold hover:underline"
             >
               Contact Support
