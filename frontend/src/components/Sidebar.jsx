@@ -55,6 +55,7 @@ const Sidebar = () => {
     { path: "/insights", label: "Insights", icon: "fa-chart-pie" },
     { path: "/zo/ai/chat", label: "ZO AI", icon: "fa-robot" },
     { path: "/automation", label: "Automation", icon: "fa-clock" },
+    { path: '/competitor-analysis', icon: 'fa-arrow-right-arrow-left', label: 'Competitor Analysis' },
     { path: "/add-website", label: "Add Website", icon: "fa-plus-circle" },
     { path: "/reports", label: "Reports", icon: "fa-file-alt" },
     { path: "/settings", label: "Settings", icon: "fa-cog" },
