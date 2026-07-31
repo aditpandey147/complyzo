@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { SendMailClient } = require('zeptomail');
 
 // ============================================================
