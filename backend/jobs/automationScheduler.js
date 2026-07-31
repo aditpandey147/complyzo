@@ -1,121 +1,108 @@
-// backend/jobs/automationScheduler.js
-const cron = require('node-cron');
 const AutomationSetting = require('../models/AutomationSetting');
+const AutomationLog = require('../models/AutomationLog');
 
-// ✅ Check if it's time to run
-const shouldRunNow = (timezone, scanFrequency, scanTime) => {
-  const now = new Date();
+/**
+ * Save automation setting
+ */
+async function saveAutomationSetting(userId, websiteId, settings) {
+  try {
+    let setting = await AutomationSetting.findOne({
+      userId: userId,
+      websiteId: websiteId
+    });
+
+    const isActive = settings.scanFrequency && settings.scanFrequency !== 'manual';
+
+    if (setting) {
+      setting.scanFrequency = settings.scanFrequency || 'manual';
+      setting.notifications = settings.notifications || {
+        email: true,
+        whatsapp: false,
+        criticalOnly: true
+      };
+      setting.isActive = isActive;
+      setting.updatedAt = new Date();
+      
+      if (isActive) {
+        setting.calculateNextScan();
+      } else {
+        setting.nextScanAt = null;
+      }
+      
+      await setting.save();
+    } else {
+      const newSetting = new AutomationSetting({
+        userId: userId,
+        websiteId: websiteId,
+        scanFrequency: settings.scanFrequency || 'manual',
+        notifications: settings.notifications || {
+          email: true,
+          whatsapp: false,
+          criticalOnly: true
+        },
+        isActive: isActive,
+        lastScanAt: null,
+        nextScanAt: null
+      });
+      
+      if (isActive) {
+        newSetting.calculateNextScan();
+      }
+      
+      await newSetting.save();
+      setting = newSetting;
+    }
+
+    return setting;
+  } catch (error) {
+    console.error('Error saving automation setting:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get automation logs for a website
+ */
+async function getAutomationLogs(websiteId, limit = 50) {
+  try {
+    return await AutomationLog.find({ websiteId })
+      .sort({ startedAt: -1 })
+      .limit(limit);
+  } catch (error) {
+    console.error('Error fetching automation logs:', error);
+    return [];
+  }
+}
+
+/**
+ * Initialize all schedules
+ * ✅ This is the function that needs to be exported
+ */
+function initializeAllSchedules() {
+  console.log('🔄 Initializing all automation schedules...');
   
   try {
-    const localNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-    const [hours, minutes] = (scanTime || '09:00').split(':').map(Number);
-    
-    const currentMinutes = localNow.getHours() * 60 + localNow.getMinutes();
-    const targetMinutes = hours * 60 + minutes;
-    const diff = Math.abs(currentMinutes - targetMinutes);
-    
-    if (diff > 5) return false;
-    
-    if (scanFrequency === 'daily') return true;
-    if (scanFrequency === 'weekly') return localNow.getDay() === 1;
-    if (scanFrequency === 'monthly') return localNow.getDate() === 1;
-    
-    return false;
+    // ✅ Import and initialize auto scans
+    const { initializeAutoScans } = require('./autoScan');
+    initializeAutoScans();
+    console.log('✅ Auto-scans initialized');
   } catch (error) {
-    console.error('Error checking time:', error);
-    return false;
+    console.error('❌ Failed to initialize auto-scans:', error.message);
   }
-};
-
-// ✅ Process a single scan
-const processScan = async (setting) => {
+  
   try {
-    console.log(`🔍 Running scan for website: ${setting.websiteId}`);
-    
-    const { performAutomatedScan } = require('../services/automationService');
-    await performAutomatedScan(setting);
-    
-    setting.lastScanAt = new Date();
-    setting.calculateNextScan(); // ✅ Manual calculation
-    await setting.save();
-    
-    console.log(`✅ Scan completed for website: ${setting.websiteId}`);
-    console.log(`📅 Next scan: ${setting.nextScanAt}`);
-    
+    // ✅ Import and initialize automation monitor
+    const { initializeAutomationMonitor } = require('./automationMonitor');
+    initializeAutomationMonitor();
+    console.log('✅ Automation monitor initialized');
   } catch (error) {
-    console.error(`❌ Scan failed for ${setting.websiteId}:`, error.message);
+    console.error('❌ Failed to initialize automation monitor:', error.message);
   }
-};
+}
 
-// ✅ Check all schedules
-const checkAllSchedules = async () => {
-  try {
-    const settings = await AutomationSetting.find({ 
-      isActive: true,
-      scanFrequency: { $ne: 'manual' }
-    });
-    
-    if (settings.length === 0) return;
-    
-    console.log(`🔍 Checking ${settings.length} automation schedules...`);
-    
-    for (const setting of settings) {
-      const timezone = setting.timezone || 'UTC';
-      const scanTime = setting.scanTime || '09:00';
-      const scanFrequency = setting.scanFrequency;
-      
-      if (shouldRunNow(timezone, scanFrequency, scanTime)) {
-        console.log(`⏰ Running scan for ${setting.websiteId} at ${timezone}`);
-        await processScan(setting);
-      }
-    }
-  } catch (error) {
-    console.error('❌ Check schedules error:', error);
-  }
+// ✅ Export all functions
+module.exports = {
+  saveAutomationSetting,
+  getAutomationLogs,
+  initializeAllSchedules
 };
-
-// ✅ Update all next scan times
-const updateAllNextScanTimes = async () => {
-  try {
-    console.log('📋 Updating all next scan times...');
-    
-    const settings = await AutomationSetting.find({ 
-      isActive: true,
-      scanFrequency: { $ne: 'manual' }
-    });
-    
-    console.log(`📋 Found ${settings.length} active automations`);
-    
-    for (const setting of settings) {
-      setting.calculateNextScan(); // ✅ Manual calculation
-      await setting.save();
-      console.log(`📅 Next scan for ${setting.websiteId}: ${setting.nextScanAt}`);
-    }
-    
-    console.log('✅ All next scan times updated');
-  } catch (error) {
-    console.error('Error updating next scan times:', error);
-  }
-};
-
-// ✅ Initialize scheduler
-const initializeAllSchedules = async () => {
-  try {
-    console.log('🔄 Initializing automation schedules...');
-    
-    // Run every minute
-    cron.schedule('* * * * *', async () => {
-      await checkAllSchedules();
-    });
-    
-    console.log('✅ Schedules initialized');
-    
-    // Update all next scan times on startup
-    await updateAllNextScanTimes();
-    
-  } catch (error) {
-    console.error('❌ Schedule initialization error:', error);
-  }
-};
-
-module.exports = { initializeAllSchedules };
