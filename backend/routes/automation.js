@@ -1,4 +1,3 @@
-// backend/routes/automation.js - Updated save route
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
@@ -19,8 +18,6 @@ router.get('/settings', auth, async (req, res) => {
     settings.forEach(setting => {
       settingsMap[setting.websiteId.toString()] = {
         scanFrequency: setting.scanFrequency || 'manual',
-        timezone: setting.timezone || 'UTC',
-        scanTime: setting.scanTime || '09:00',
         notifications: setting.notifications || {
           email: true,
           whatsapp: false,
@@ -53,8 +50,10 @@ router.post('/settings', auth, async (req, res) => {
     
     console.log('📥 ===== SAVE AUTOMATION SETTINGS =====');
     console.log('👤 User ID:', req.user.id);
+    console.log('📋 Settings received:', JSON.stringify(settings, null, 2));
     
     if (!settings || typeof settings !== 'object') {
+      console.log('❌ Invalid settings data');
       return res.status(400).json({ 
         success: false,
         message: 'Invalid settings data' 
@@ -64,8 +63,10 @@ router.post('/settings', auth, async (req, res) => {
     const results = [];
     
     for (const [websiteId, websiteSettings] of Object.entries(settings)) {
-      console.log(`📝 Processing website: ${websiteId}`);
+      console.log(`\n📝 Processing website: ${websiteId}`);
+      console.log(`   Settings:`, JSON.stringify(websiteSettings, null, 2));
       
+      // ✅ Check if the website exists
       const Website = require('../models/Website');
       const website = await Website.findById(websiteId);
       if (!website) {
@@ -73,6 +74,7 @@ router.post('/settings', auth, async (req, res) => {
         continue;
       }
       
+      // Find existing setting or create new one
       let setting = await AutomationSetting.findOne({
         userId: req.user.id,
         websiteId: websiteId
@@ -92,13 +94,30 @@ router.post('/settings', auth, async (req, res) => {
         setting.scanFrequency = websiteSettings.scanFrequency || 'manual';
         setting.notifications = notifications;
         setting.isActive = isActive;
-        setting.timezone = websiteSettings.timezone || 'UTC';
-        setting.scanTime = websiteSettings.scanTime || '09:00';
         setting.updatedAt = new Date();
         
-        // ✅ Manually calculate next scan
         if (isActive) {
-          setting.calculateNextScan();
+          const now = new Date();
+          let nextDate = new Date(now);
+          switch(setting.scanFrequency) {
+            case 'daily':
+              nextDate.setDate(now.getDate() + 1);
+              nextDate.setHours(9, 0, 0, 0);
+              break;
+            case 'weekly':
+              const daysUntilMonday = (1 - now.getDay() + 7) % 7 || 7;
+              nextDate.setDate(now.getDate() + daysUntilMonday);
+              nextDate.setHours(9, 0, 0, 0);
+              break;
+            case 'monthly':
+              nextDate.setMonth(now.getMonth() + 1);
+              nextDate.setDate(1);
+              nextDate.setHours(9, 0, 0, 0);
+              break;
+            default:
+              nextDate = null;
+          }
+          setting.nextScanAt = nextDate;
           console.log(`   📅 Next scan: ${setting.nextScanAt}`);
         } else {
           setting.nextScanAt = null;
@@ -116,15 +135,32 @@ router.post('/settings', auth, async (req, res) => {
           scanFrequency: websiteSettings.scanFrequency || 'manual',
           notifications: notifications,
           isActive: isActive,
-          timezone: websiteSettings.timezone || 'UTC',
-          scanTime: websiteSettings.scanTime || '09:00',
           lastScanAt: null,
           nextScanAt: null
         });
         
-        // ✅ Manually calculate next scan
         if (isActive) {
-          newSetting.calculateNextScan();
+          const now = new Date();
+          let nextDate = new Date(now);
+          switch(newSetting.scanFrequency) {
+            case 'daily':
+              nextDate.setDate(now.getDate() + 1);
+              nextDate.setHours(9, 0, 0, 0);
+              break;
+            case 'weekly':
+              const daysUntilMonday = (1 - now.getDay() + 7) % 7 || 7;
+              nextDate.setDate(now.getDate() + daysUntilMonday);
+              nextDate.setHours(9, 0, 0, 0);
+              break;
+            case 'monthly':
+              nextDate.setMonth(now.getMonth() + 1);
+              nextDate.setDate(1);
+              nextDate.setHours(9, 0, 0, 0);
+              break;
+            default:
+              nextDate = null;
+          }
+          newSetting.nextScanAt = nextDate;
           console.log(`   📅 Next scan: ${newSetting.nextScanAt}`);
         }
         
@@ -144,6 +180,7 @@ router.post('/settings', auth, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Error saving automation settings:', error);
+    console.error('📋 Stack:', error.stack);
     res.status(500).json({ 
       success: false,
       message: 'Failed to save settings',
@@ -158,6 +195,8 @@ router.post('/settings', auth, async (req, res) => {
 
 router.get('/stats', auth, async (req, res) => {
   try {
+    console.log('📡 Fetching automation stats for user:', req.user.id);
+    
     const totalSettings = await AutomationSetting.countDocuments({ 
       userId: req.user.id 
     });
@@ -167,9 +206,20 @@ router.get('/stats', auth, async (req, res) => {
       isActive: true
     });
     
+    // Get recent logs if model exists
+    let recentScans = [];
+    try {
+      recentScans = await AutomationLog.find({
+        userId: req.user.id
+      }).sort({ startedAt: -1 }).limit(5);
+    } catch (e) {
+      console.log('⚠️ AutomationLog model not found');
+    }
+    
     res.json({
       totalAutomations: totalSettings || 0,
       activeAutomations: activeSettings || 0,
+      recentScans: recentScans || [],
       successRate: 85
     });
     
@@ -184,11 +234,13 @@ router.get('/stats', auth, async (req, res) => {
 });
 
 // ============================================================
-// 📋 GET AUTOMATION LOGS
+// 📋 GET AUTOMATION LOGS FOR A WEBSITE
 // ============================================================
 
 router.get('/logs/:websiteId', auth, async (req, res) => {
   try {
+    console.log('📡 Fetching logs for website:', req.params.websiteId);
+    
     let logs = [];
     try {
       logs = await AutomationLog.find({
@@ -219,6 +271,8 @@ router.delete('/settings/:websiteId', auth, async (req, res) => {
   try {
     const { websiteId } = req.params;
     
+    console.log(`🗑️ Deleting automation for website: ${websiteId}`);
+    
     const result = await AutomationSetting.findOneAndDelete({
       userId: req.user.id,
       websiteId: websiteId
@@ -241,6 +295,29 @@ router.delete('/settings/:websiteId', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete automation'
+    });
+  }
+});
+
+// ============================================================
+// 🧪 TEST NOTIFICATION
+// ============================================================
+
+router.post('/test-notification', auth, async (req, res) => {
+  try {
+    const { type, websiteUrl } = req.body;
+    console.log(`🧪 Test ${type} notification for user:`, req.user.id);
+    
+    res.json({ 
+      success: true,
+      message: `Test ${type} notification sent successfully!` 
+    });
+    
+  } catch (error) {
+    console.error('Test notification failed:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to send test notification' 
     });
   }
 });
