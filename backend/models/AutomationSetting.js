@@ -1,3 +1,4 @@
+// models/AutomationSetting.js - Without pre-save hook
 const mongoose = require('mongoose');
 
 const automationSettingSchema = new mongoose.Schema({
@@ -17,6 +18,15 @@ const automationSettingSchema = new mongoose.Schema({
     type: String,
     enum: ['daily', 'weekly', 'monthly', 'manual'],
     default: 'manual'
+  },
+  timezone: {
+    type: String,
+    default: 'Asia/Kolkata'
+  },
+  scanTime: {
+    type: String,
+    default: '09:00',
+    match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
   },
   notifications: {
     email: {
@@ -54,45 +64,69 @@ const automationSettingSchema = new mongoose.Schema({
   }
 });
 
-// ✅ FIX 1: Use async/await WITHOUT next parameter
-automationSettingSchema.pre('save', async function() {
-  this.updatedAt = new Date();
-  // No next() needed with async
-});
-
-// ✅ FIX 2: OR use regular function WITH next parameter
-// automationSettingSchema.pre('save', function(next) {
-//   this.updatedAt = new Date();
-//   next();
-// });
-
-// ✅ Calculate next scan date
+// ✅ Calculate next scan based on user's timezone
 automationSettingSchema.methods.calculateNextScan = function() {
   const now = new Date();
-  let nextDate = new Date(now);
+  const timezone = this.timezone || 'Asia/Kolkata';
+  const [hours, minutes] = (this.scanTime || '09:00').split(':').map(Number);
   
-  switch(this.scanFrequency) {
-    case 'daily':
-      nextDate.setDate(now.getDate() + 1);
-      nextDate.setHours(9, 0, 0, 0);
-      break;
-    case 'weekly':
-      const daysUntilMonday = (1 - now.getDay() + 7) % 7 || 7;
-      nextDate.setDate(now.getDate() + daysUntilMonday);
-      nextDate.setHours(9, 0, 0, 0);
-      break;
-    case 'monthly':
-      nextDate.setMonth(now.getMonth() + 1);
-      nextDate.setDate(1);
-      nextDate.setHours(9, 0, 0, 0);
-      break;
-    default:
-      this.nextScanAt = null;
-      return null;
+  // Get timezone offset
+  let tzOffset = 0;
+  try {
+    const localStr = now.toLocaleString('en-US', { timeZone: timezone });
+    const utcStr = now.toLocaleString('en-US', { timeZone: 'UTC' });
+    const localTime = new Date(localStr).getTime();
+    const utcTime = new Date(utcStr).getTime();
+    tzOffset = (localTime - utcTime) / (1000 * 60);
+  } catch (error) {
+    console.log(`⚠️ Error getting offset for ${timezone}, using UTC`);
   }
   
-  this.nextScanAt = nextDate;
-  return nextDate;
+  // Calculate in minutes
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const localMinutes = utcMinutes + tzOffset;
+  const targetMinutes = hours * 60 + minutes;
+  
+  // Calculate days to add
+  let daysToAdd = 0;
+  
+  if (this.scanFrequency === 'daily') {
+    if (localMinutes >= targetMinutes) {
+      daysToAdd = 1;
+    }
+  }
+  
+  if (this.scanFrequency === 'weekly') {
+    const localNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+    const daysUntilMonday = (1 - localNow.getDay() + 7) % 7 || 7;
+    daysToAdd = daysUntilMonday;
+    if (localNow.getDay() === 1 && localMinutes >= targetMinutes) {
+      daysToAdd = 7;
+    }
+  }
+  
+  if (this.scanFrequency === 'monthly') {
+    const localNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+    const currentDay = localNow.getDate();
+    const daysInMonth = new Date(localNow.getFullYear(), localNow.getMonth() + 1, 0).getDate();
+    if (currentDay >= 1) {
+      daysToAdd = (daysInMonth - currentDay) + 1;
+    } else {
+      daysToAdd = 0;
+    }
+  }
+  
+  const targetUTC = new Date(now);
+  targetUTC.setUTCDate(targetUTC.getUTCDate() + daysToAdd);
+  targetUTC.setUTCHours(0, 0, 0, 0);
+  
+  const targetUTCMinutes = targetMinutes - tzOffset;
+  targetUTC.setUTCMinutes(targetUTCMinutes);
+  
+  this.nextScanAt = targetUTC;
+  return this.nextScanAt;
 };
+
+// ❌ NO pre-save hook - removed
 
 module.exports = mongoose.model('AutomationSetting', automationSettingSchema);
