@@ -1,3 +1,4 @@
+// jobs/automationScheduler.js
 const AutomationSetting = require('../models/AutomationSetting');
 const AutomationLog = require('../models/AutomationLog');
 
@@ -13,6 +14,10 @@ async function saveAutomationSetting(userId, websiteId, settings) {
 
     const isActive = settings.scanFrequency && settings.scanFrequency !== 'manual';
 
+    // ✅ Get timezone and scanTime
+    const timezone = settings.timezone || 'Asia/Kolkata';
+    const scanTime = settings.scanTime || '09:00';
+
     if (setting) {
       setting.scanFrequency = settings.scanFrequency || 'manual';
       setting.notifications = settings.notifications || {
@@ -22,6 +27,10 @@ async function saveAutomationSetting(userId, websiteId, settings) {
       };
       setting.isActive = isActive;
       setting.updatedAt = new Date();
+      
+      // ✅ Save timezone and scanTime
+      setting.timezone = timezone;
+      setting.scanTime = scanTime;
       
       if (isActive) {
         setting.calculateNextScan();
@@ -41,6 +50,9 @@ async function saveAutomationSetting(userId, websiteId, settings) {
           criticalOnly: true
         },
         isActive: isActive,
+        // ✅ Add timezone and scanTime
+        timezone: timezone,
+        scanTime: scanTime,
         lastScanAt: null,
         nextScanAt: null
       });
@@ -76,13 +88,11 @@ async function getAutomationLogs(websiteId, limit = 50) {
 
 /**
  * Initialize all schedules
- * ✅ This is the function that needs to be exported
  */
 function initializeAllSchedules() {
   console.log('🔄 Initializing all automation schedules...');
   
   try {
-    // ✅ Import and initialize auto scans
     const { initializeAutoScans } = require('./autoScan');
     initializeAutoScans();
     console.log('✅ Auto-scans initialized');
@@ -91,7 +101,6 @@ function initializeAllSchedules() {
   }
   
   try {
-    // ✅ Import and initialize automation monitor
     const { initializeAutomationMonitor } = require('./automationMonitor');
     initializeAutomationMonitor();
     console.log('✅ Automation monitor initialized');
@@ -100,7 +109,6 @@ function initializeAllSchedules() {
   }
 }
 
-// ✅ Export all functions
 module.exports = {
   saveAutomationSetting,
   getAutomationLogs,
