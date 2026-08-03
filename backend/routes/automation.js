@@ -19,7 +19,7 @@ router.get('/settings', auth, async (req, res) => {
     settings.forEach(setting => {
       settingsMap[setting.websiteId.toString()] = {
         scanFrequency: setting.scanFrequency || 'manual',
-        timezone: setting.timezone || 'Asia/Kolkata',
+        timezone: setting.timezone || 'UTC',
         scanTime: setting.scanTime || '09:00',
         notifications: setting.notifications || {
           email: true,
@@ -38,8 +38,7 @@ router.get('/settings', auth, async (req, res) => {
     console.error('Error fetching automation settings:', error);
     res.status(500).json({ 
       success: false,
-      message: 'Failed to fetch settings',
-      error: error.message 
+      message: 'Failed to fetch settings' 
     });
   }
 });
@@ -54,8 +53,10 @@ router.post('/settings', auth, async (req, res) => {
     
     console.log('📥 ===== SAVE AUTOMATION SETTINGS =====');
     console.log('👤 User ID:', req.user.id);
+    console.log('📋 Settings received:', JSON.stringify(settings, null, 2));
     
     if (!settings || typeof settings !== 'object') {
+      console.log('❌ Invalid settings data');
       return res.status(400).json({ 
         success: false,
         message: 'Invalid settings data' 
@@ -65,9 +66,9 @@ router.post('/settings', auth, async (req, res) => {
     const results = [];
     
     for (const [websiteId, websiteSettings] of Object.entries(settings)) {
-      console.log(`📝 Processing website: ${websiteId}`);
+      console.log(`\n📝 Processing website: ${websiteId}`);
+      console.log(`   Settings:`, JSON.stringify(websiteSettings, null, 2));
       
-      // Check if website exists
       const Website = require('../models/Website');
       const website = await Website.findById(websiteId);
       if (!website) {
@@ -75,7 +76,6 @@ router.post('/settings', auth, async (req, res) => {
         continue;
       }
       
-      // Find existing setting
       let setting = await AutomationSetting.findOne({
         userId: req.user.id,
         websiteId: websiteId
@@ -90,8 +90,8 @@ router.post('/settings', auth, async (req, res) => {
         criticalOnly: websiteSettings.notifications?.criticalOnly !== undefined ? websiteSettings.notifications.criticalOnly : true
       };
 
-      // Get timezone and scanTime
-      const timezone = websiteSettings.timezone || 'Asia/Kolkata';
+      // ✅ Get timezone and scan time from request
+      const timezone = websiteSettings.timezone || 'UTC';
       const scanTime = websiteSettings.scanTime || '09:00';
 
       if (setting) {
@@ -103,21 +103,16 @@ router.post('/settings', auth, async (req, res) => {
         setting.scanTime = scanTime;
         setting.updatedAt = new Date();
         
-        // ✅ Calculate next scan if active
+        // ✅ Manually calculate next scan
         if (isActive) {
-          try {
-            setting.calculateNextScan();
-            console.log(`   📅 Next scan: ${setting.nextScanAt}`);
-            console.log(`   📅 Next scan (local): ${new Date(setting.nextScanAt).toLocaleString('en-US', { timeZone: timezone })}`);
-          } catch (calcError) {
-            console.error('   ❌ Error calculating next scan:', calcError.message);
-            setting.nextScanAt = null;
-          }
+          setting.calculateNextScan();
+          console.log(`   📅 Next scan: ${setting.nextScanAt}`);
         } else {
           setting.nextScanAt = null;
         }
         
         await setting.save();
+        console.log(`   ✅ Setting saved! ID: ${setting._id}`);
         results.push(setting);
         
       } else {
@@ -134,19 +129,14 @@ router.post('/settings', auth, async (req, res) => {
           nextScanAt: null
         });
         
-        // ✅ Calculate next scan if active
+        // ✅ Manually calculate next scan
         if (isActive) {
-          try {
-            newSetting.calculateNextScan();
-            console.log(`   📅 Next scan: ${newSetting.nextScanAt}`);
-            console.log(`   📅 Next scan (local): ${new Date(newSetting.nextScanAt).toLocaleString('en-US', { timeZone: timezone })}`);
-          } catch (calcError) {
-            console.error('   ❌ Error calculating next scan:', calcError.message);
-            newSetting.nextScanAt = null;
-          }
+          newSetting.calculateNextScan();
+          console.log(`   📅 Next scan: ${newSetting.nextScanAt}`);
         }
         
         await newSetting.save();
+        console.log(`   ✅ New setting saved! ID: ${newSetting._id}`);
         results.push(newSetting);
       }
     }
@@ -187,7 +177,6 @@ router.get('/stats', auth, async (req, res) => {
       isActive: true
     });
     
-    // Get recent logs if model exists
     let recentScans = [];
     try {
       recentScans = await AutomationLog.find({
