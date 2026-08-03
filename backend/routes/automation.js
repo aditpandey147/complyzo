@@ -1,3 +1,4 @@
+// routes/automation.js
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
@@ -18,6 +19,8 @@ router.get('/settings', auth, async (req, res) => {
     settings.forEach(setting => {
       settingsMap[setting.websiteId.toString()] = {
         scanFrequency: setting.scanFrequency || 'manual',
+        timezone: setting.timezone || 'Asia/Kolkata',
+        scanTime: setting.scanTime || '09:00',
         notifications: setting.notifications || {
           email: true,
           whatsapp: false,
@@ -35,7 +38,8 @@ router.get('/settings', auth, async (req, res) => {
     console.error('Error fetching automation settings:', error);
     res.status(500).json({ 
       success: false,
-      message: 'Failed to fetch settings' 
+      message: 'Failed to fetch settings',
+      error: error.message 
     });
   }
 });
@@ -50,10 +54,8 @@ router.post('/settings', auth, async (req, res) => {
     
     console.log('📥 ===== SAVE AUTOMATION SETTINGS =====');
     console.log('👤 User ID:', req.user.id);
-    console.log('📋 Settings received:', JSON.stringify(settings, null, 2));
     
     if (!settings || typeof settings !== 'object') {
-      console.log('❌ Invalid settings data');
       return res.status(400).json({ 
         success: false,
         message: 'Invalid settings data' 
@@ -63,10 +65,9 @@ router.post('/settings', auth, async (req, res) => {
     const results = [];
     
     for (const [websiteId, websiteSettings] of Object.entries(settings)) {
-      console.log(`\n📝 Processing website: ${websiteId}`);
-      console.log(`   Settings:`, JSON.stringify(websiteSettings, null, 2));
+      console.log(`📝 Processing website: ${websiteId}`);
       
-      // ✅ Check if the website exists
+      // Check if website exists
       const Website = require('../models/Website');
       const website = await Website.findById(websiteId);
       if (!website) {
@@ -74,7 +75,7 @@ router.post('/settings', auth, async (req, res) => {
         continue;
       }
       
-      // Find existing setting or create new one
+      // Find existing setting
       let setting = await AutomationSetting.findOne({
         userId: req.user.id,
         websiteId: websiteId
@@ -89,42 +90,34 @@ router.post('/settings', auth, async (req, res) => {
         criticalOnly: websiteSettings.notifications?.criticalOnly !== undefined ? websiteSettings.notifications.criticalOnly : true
       };
 
+      // Get timezone and scanTime
+      const timezone = websiteSettings.timezone || 'Asia/Kolkata';
+      const scanTime = websiteSettings.scanTime || '09:00';
+
       if (setting) {
         console.log(`   ✅ Updating existing setting`);
         setting.scanFrequency = websiteSettings.scanFrequency || 'manual';
         setting.notifications = notifications;
         setting.isActive = isActive;
+        setting.timezone = timezone;
+        setting.scanTime = scanTime;
         setting.updatedAt = new Date();
         
+        // ✅ Calculate next scan if active
         if (isActive) {
-          const now = new Date();
-          let nextDate = new Date(now);
-          switch(setting.scanFrequency) {
-            case 'daily':
-              nextDate.setDate(now.getDate() + 1);
-              nextDate.setHours(9, 0, 0, 0);
-              break;
-            case 'weekly':
-              const daysUntilMonday = (1 - now.getDay() + 7) % 7 || 7;
-              nextDate.setDate(now.getDate() + daysUntilMonday);
-              nextDate.setHours(9, 0, 0, 0);
-              break;
-            case 'monthly':
-              nextDate.setMonth(now.getMonth() + 1);
-              nextDate.setDate(1);
-              nextDate.setHours(9, 0, 0, 0);
-              break;
-            default:
-              nextDate = null;
+          try {
+            setting.calculateNextScan();
+            console.log(`   📅 Next scan: ${setting.nextScanAt}`);
+            console.log(`   📅 Next scan (local): ${new Date(setting.nextScanAt).toLocaleString('en-US', { timeZone: timezone })}`);
+          } catch (calcError) {
+            console.error('   ❌ Error calculating next scan:', calcError.message);
+            setting.nextScanAt = null;
           }
-          setting.nextScanAt = nextDate;
-          console.log(`   📅 Next scan: ${setting.nextScanAt}`);
         } else {
           setting.nextScanAt = null;
         }
         
         await setting.save();
-        console.log(`   ✅ Setting saved! ID: ${setting._id}`);
         results.push(setting);
         
       } else {
@@ -135,37 +128,25 @@ router.post('/settings', auth, async (req, res) => {
           scanFrequency: websiteSettings.scanFrequency || 'manual',
           notifications: notifications,
           isActive: isActive,
+          timezone: timezone,
+          scanTime: scanTime,
           lastScanAt: null,
           nextScanAt: null
         });
         
+        // ✅ Calculate next scan if active
         if (isActive) {
-          const now = new Date();
-          let nextDate = new Date(now);
-          switch(newSetting.scanFrequency) {
-            case 'daily':
-              nextDate.setDate(now.getDate() + 1);
-              nextDate.setHours(9, 0, 0, 0);
-              break;
-            case 'weekly':
-              const daysUntilMonday = (1 - now.getDay() + 7) % 7 || 7;
-              nextDate.setDate(now.getDate() + daysUntilMonday);
-              nextDate.setHours(9, 0, 0, 0);
-              break;
-            case 'monthly':
-              nextDate.setMonth(now.getMonth() + 1);
-              nextDate.setDate(1);
-              nextDate.setHours(9, 0, 0, 0);
-              break;
-            default:
-              nextDate = null;
+          try {
+            newSetting.calculateNextScan();
+            console.log(`   📅 Next scan: ${newSetting.nextScanAt}`);
+            console.log(`   📅 Next scan (local): ${new Date(newSetting.nextScanAt).toLocaleString('en-US', { timeZone: timezone })}`);
+          } catch (calcError) {
+            console.error('   ❌ Error calculating next scan:', calcError.message);
+            newSetting.nextScanAt = null;
           }
-          newSetting.nextScanAt = nextDate;
-          console.log(`   📅 Next scan: ${newSetting.nextScanAt}`);
         }
         
         await newSetting.save();
-        console.log(`   ✅ New setting saved! ID: ${newSetting._id}`);
         results.push(newSetting);
       }
     }
