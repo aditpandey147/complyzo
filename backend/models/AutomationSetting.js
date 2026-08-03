@@ -66,6 +66,9 @@ const automationSettingSchema = new mongoose.Schema({
   }
 });
 
+// models/AutomationSetting.js
+
+// ✅ Calculate next scan using manual timezone offset
 automationSettingSchema.methods.calculateNextScan = function() {
   const now = new Date();
   const timezone = this.timezone || 'UTC';
@@ -75,40 +78,48 @@ automationSettingSchema.methods.calculateNextScan = function() {
   console.log(`   Timezone: ${timezone}`);
   console.log(`   Scan time: ${hours}:${minutes}`);
   
-  // ✅ Get current time in user's timezone
-  const localNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-  console.log(`   Current time in ${timezone}: ${localNow.toString()}`);
-  
-  let nextDate = new Date(localNow);
-  
-  switch(this.scanFrequency) {
-    case 'daily':
-      nextDate.setHours(hours, minutes, 0, 0);
-      if (nextDate <= localNow) {
-        nextDate.setDate(nextDate.getDate() + 1);
-      }
-      break;
-    case 'weekly':
-      const daysUntilMonday = (1 - localNow.getDay() + 7) % 7 || 7;
-      nextDate.setDate(localNow.getDate() + daysUntilMonday);
-      nextDate.setHours(hours, minutes, 0, 0);
-      break;
-    case 'monthly':
-      nextDate.setMonth(localNow.getMonth() + 1);
-      nextDate.setDate(1);
-      nextDate.setHours(hours, minutes, 0, 0);
-      break;
-    default:
-      this.nextScanAt = null;
-      return null;
+  // ✅ Get timezone offset in minutes
+  let tzOffset = 0;
+  try {
+    // Get current time in user's timezone
+    const localStr = now.toLocaleString('en-US', { timeZone: timezone });
+    const utcStr = now.toLocaleString('en-US', { timeZone: 'UTC' });
+    const localTime = new Date(localStr).getTime();
+    const utcTime = new Date(utcStr).getTime();
+    tzOffset = (localTime - utcTime) / (1000 * 60);
+    console.log(`   Timezone offset: ${tzOffset} minutes (${tzOffset/60} hours)`);
+  } catch (error) {
+    console.log(`   ⚠️ Error getting offset for ${timezone}, using UTC`);
   }
   
-  console.log(`   Next scan in ${timezone}: ${nextDate.toString()}`);
+  // ✅ Calculate in minutes
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const localMinutes = utcMinutes + tzOffset;
+  const targetMinutes = hours * 60 + minutes;
   
-  // ✅ Convert to UTC for storage
-  this.nextScanAt = new Date(nextDate.toISOString());
-  console.log(`   Next scan in UTC: ${this.nextScanAt.toISOString()}`);
+  console.log(`   Current UTC minutes: ${utcMinutes}`);
+  console.log(`   Current local minutes: ${localMinutes}`);
+  console.log(`   Target local minutes: ${targetMinutes}`);
   
+  // ✅ Calculate days to add
+  let daysToAdd = 0;
+  if (localMinutes >= targetMinutes) {
+    daysToAdd = 1;
+    console.log(`   Target time passed today, scheduling for tomorrow`);
+  }
+  
+  // ✅ Calculate target UTC time
+  const targetUTC = new Date(now);
+  targetUTC.setUTCDate(targetUTC.getUTCDate() + daysToAdd);
+  targetUTC.setUTCHours(0, 0, 0, 0);
+  
+  // ✅ Add target minutes in local time converted to UTC
+  const targetUTCMinutes = targetMinutes - tzOffset;
+  targetUTC.setUTCMinutes(targetUTCMinutes);
+  
+  console.log(`   Next scan in UTC: ${targetUTC.toISOString()}`);
+  
+  this.nextScanAt = targetUTC;
   return this.nextScanAt;
 };
 // ❌ NO pre-save hook - removed
