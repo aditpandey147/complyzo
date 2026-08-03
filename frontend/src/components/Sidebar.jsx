@@ -8,6 +8,7 @@ const Sidebar = () => {
   const { logout, user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [planName, setPlanName] = useState(user?.planName || "Free");
+  const [planLevel, setPlanLevel] = useState(user?.planId || 1);
   const [planLoading, setPlanLoading] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -23,7 +24,7 @@ const Sidebar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ Fetch plan name from Plan table based on planId
+  // ✅ Fetch plan name and level from Plan table based on planId
   useEffect(() => {
     const fetchPlanName = async () => {
       if (!user?.planId) return;
@@ -35,13 +36,16 @@ const Sidebar = () => {
           const plan = response.data.find((p) => p.planId === user.planId);
           if (plan) {
             setPlanName(plan.name);
+            setPlanLevel(plan.planId);
           } else {
             setPlanName(user?.planName || "Free");
+            setPlanLevel(user?.planId || 1);
           }
         }
       } catch (error) {
         console.error("Failed to fetch plan name:", error);
         setPlanName(user?.planName || "Free");
+        setPlanLevel(user?.planId || 1);
       } finally {
         setPlanLoading(false);
       }
@@ -51,21 +55,20 @@ const Sidebar = () => {
   }, [user?.planId]);
 
   const navItems = [
-    { path: "/dashboard", label: "Dashboard", icon: "fa-chart-line" },
-    { path: "/insights", label: "Insights", icon: "fa-chart-pie" },
-    { path: "/zo/ai/chat", label: "ZO AI", icon: "fa-robot" },
-    { path: "/automation", label: "Automation", icon: "fa-clock" },
-    { path: '/competitor-analysis', icon: 'fa-arrow-right-arrow-left', label: 'Competitor Analysis' },
-    { path: "/add-website", label: "Add Website", icon: "fa-plus-circle" },
-    { path: "/reports", label: "Reports", icon: "fa-file-alt" },
-    { path: "/settings", label: "Settings", icon: "fa-cog" },
-    { path: '/unlimited', icon: 'fa-crown', label: 'Unlimited' },
-    { path: "/ai-profit-machine", label: "AI Profit Machine", icon: "fa-money-bill-wave",},
-    { path: "/visual-library", label: "DFY Visual Library", icon: "fa-images",},
-    { path: "/video-library", label: "DFY Video Library", icon: "fa-video",},
-    { path: '/ai-ranker', icon: 'fa-chart-line', label: 'AI Ranker' },
-    { path: '/training', icon: 'fa-graduation-cap', label: 'Training' },
-    { path: '/support', icon: 'fa-headset', label: 'Support' },
+    { path: "/dashboard", label: "Dashboard", icon: "fa-chart-line", show: true },
+    { path: "/insights", label: "Insights", icon: "fa-chart-pie", show: true },
+    { path: "/zo/ai/chat", label: "ZO AI", icon: "fa-robot", show: true },
+    { path: "/automation", label: "Automation", icon: "fa-clock", show: true },
+    { path: "/add-website", label: "Add Website", icon: "fa-plus-circle", show: true },
+    { path: "/reports", label: "Reports", icon: "fa-file-alt", show: true },
+    { path: '/unlimited', icon: 'fa-crown', label: 'Unlimited', show: planLevel >= 3 || isAdmin },
+    { path: '/competitor-analysis', icon: 'fa-arrow-right-arrow-left', label: 'Competitor Analysis', show: planLevel >= 5 || isAdmin },
+    { path: '/ai-ranker', icon: 'fa-chart-line', label: 'AI Ranker', show: planLevel >= 7 || isAdmin },
+    { path: "/visual-library", label: "DFY Visual Library", icon: "fa-images", show: planLevel >= 8 || isAdmin },
+    { path: "/video-library", label: "DFY Video Library", icon: "fa-video", show: planLevel >= 9 || isAdmin },
+    { path: "/ai-profit-machine", label: "AI Profit Machine", icon: "fa-money-bill-wave", show: planLevel >= 10 || isAdmin },
+    { path: '/training', icon: 'fa-graduation-cap', label: 'Training', show: true },
+    { path: '/support', icon: 'fa-headset', label: 'Support', show: true },
   ];
 
   const adminNavItem = {
@@ -146,6 +149,9 @@ const Sidebar = () => {
     }`;
   };
 
+  // ✅ Filter nav items based on show condition
+  const visibleNavItems = navItems.filter(item => item.show);
+
   return (
     <>
       {/* Desktop Sidebar - Enhanced UI */}
@@ -206,7 +212,7 @@ const Sidebar = () => {
 
           {/* Main Navigation - Enhanced */}
           <div className="space-y-1">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
@@ -220,11 +226,6 @@ const Sidebar = () => {
                     <span className="ml-3 text-base font-medium">{item.label}</span>
                     {isActive && (
                       <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-indigo-500 to-blue-500 rounded-r-full"></span>
-                    )}
-                    {item.badge && (
-                      <span className={`ml-auto text-[8px] font-bold text-white px-2 py-0.5 rounded-full ${item.badgeColor}`}>
-                        {item.badge}
-                      </span>
                     )}
                   </>
                 )}
@@ -278,6 +279,19 @@ const Sidebar = () => {
                       Admin
                     </span>
                   )}
+                  {/* ✅ Show Level Badge */}
+                  {planLevel >= 2 && planLevel < 3 && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
+                      <i className="fas fa-crown text-[8px]"></i>
+                      Pro
+                    </span>
+                  )}
+                  {planLevel >= 3 && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">
+                      <i className="fas fa-crown text-[8px]"></i>
+                      Premium
+                    </span>
+                  )}
                 </div>
               </button>
 
@@ -329,7 +343,7 @@ const Sidebar = () => {
       {/* Mobile Bottom Navigation - Enhanced */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-gray-200/80 shadow-lg z-50">
         <div className="flex justify-around items-center py-2 px-2">
-          {navItems.slice(0, 5).map((item) => (
+          {visibleNavItems.slice(0, 5).map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
