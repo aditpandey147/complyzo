@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { NavLink, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import logo from "../assets/nav-logo.png"
+import logo from "../assets/nav-logo.png";
 
 const Sidebar = () => {
   const { logout, user, isAdmin } = useAuth();
@@ -55,20 +55,65 @@ const Sidebar = () => {
   }, [user?.planId]);
 
   const navItems = [
-    { path: "/dashboard", label: "Dashboard", icon: "fa-chart-line", show: true },
+    {
+      path: "/dashboard",
+      label: "Dashboard",
+      icon: "fa-chart-line",
+      show: true,
+    },
     { path: "/insights", label: "Insights", icon: "fa-chart-pie", show: true },
     { path: "/zo/ai/chat", label: "ZO AI", icon: "fa-robot", show: true },
     { path: "/automation", label: "Automation", icon: "fa-clock", show: true },
-    { path: "/add-website", label: "Add Website", icon: "fa-plus-circle", show: true },
+    {
+      path: "/add-website",
+      label: "Add Website",
+      icon: "fa-plus-circle",
+      show: true,
+    },
     { path: "/reports", label: "Reports", icon: "fa-file-alt", show: true },
-    { path: '/unlimited', icon: 'fa-crown', label: 'Unlimited', show: planLevel >= 3 || isAdmin },
-    { path: '/competitor-analysis', icon: 'fa-arrow-right-arrow-left', label: 'Competitor Analysis', show: planLevel >= 5 || isAdmin },
-    { path: '/ai-ranker', icon: 'fa-chart-line', label: 'AI Ranker', show: planLevel >= 7 || isAdmin },
-    { path: "/visual-library", label: "DFY Visual Library", icon: "fa-images", show: planLevel >= 8 || isAdmin },
-    { path: "/video-library", label: "DFY Video Library", icon: "fa-video", show: planLevel >= 9 || isAdmin },
-    { path: "/ai-profit-machine", label: "AI Profit Machine", icon: "fa-money-bill-wave", show: planLevel >= 10 || isAdmin },
-    { path: '/training', icon: 'fa-graduation-cap', label: 'Training', show: true },
-    { path: '/support', icon: 'fa-headset', label: 'Support', show: true },
+    {
+      path: "/unlimited",
+      icon: "fa-crown",
+      label: "Unlimited",
+      show: planLevel >= 3 || isAdmin,
+    },
+    {
+      path: "/competitor-analysis",
+      icon: "fa-arrow-right-arrow-left",
+      label: "Competitor Analysis",
+      show: planLevel >= 5 || isAdmin,
+    },
+    {
+      path: "/ai-ranker",
+      icon: "fa-chart-line",
+      label: "AI Ranker",
+      show: planLevel >= 7 || isAdmin,
+    },
+    {
+      path: "/visual-library",
+      label: "DFY Visual Library",
+      icon: "fa-images",
+      show: planLevel >= 8 || isAdmin,
+    },
+    {
+      path: "/video-library",
+      label: "DFY Video Library",
+      icon: "fa-video",
+      show: planLevel >= 9 || isAdmin,
+    },
+    {
+      path: "/ai-profit-machine",
+      label: "AI Profit Machine",
+      icon: "fa-money-bill-wave",
+      show: planLevel >= 10 || isAdmin,
+    },
+    {
+      path: "/training",
+      icon: "fa-graduation-cap",
+      label: "Training",
+      show: true,
+    },
+    { path: "/support", icon: "fa-headset", label: "Support", show: true },
   ];
 
   const adminNavItem = {
@@ -88,11 +133,22 @@ const Sidebar = () => {
 
   const getPlanColor = (planName) => {
     const planColors = {
+      // Free/Default
       Free: "bg-gray-100 text-gray-600",
-      Starter: "bg-blue-100 text-blue-600",
-      Pro: "bg-purple-100 text-purple-600",
-      Growth: "bg-green-100 text-green-600",
-      Enterprise: "bg-amber-100 text-amber-600",
+
+      // Complyzo Plans
+      "Complyzo FE": "bg-blue-100 text-blue-600",
+      "Complyzo FE+TURBO": "bg-indigo-100 text-indigo-600",
+      "Complyzo Unlimited Silver": "bg-gray-200 text-gray-700",
+      "Complyzo Unlimited Gold": "bg-amber-100 text-amber-700",
+      "Complyzo Competitor Spy Elite": "bg-purple-100 text-purple-600",
+      "Complyzo Competitor Spy Pro": "bg-purple-200 text-purple-700",
+      "Complyzo AI Ranker": "bg-emerald-100 text-emerald-600",
+      "Complyzo DFY Silver": "bg-gray-300 text-gray-800",
+      "Complyzo DFY Gold": "bg-yellow-100 text-yellow-700",
+      "Complyzo AI Profit Machine": "bg-rose-100 text-rose-600",
+
+      // Healtrics Plans (Keep for backward compatibility)
       "Healtrics FE": "bg-blue-100 text-blue-600",
       "Healtrics Pro": "bg-purple-100 text-purple-600",
       "Healtrics Unlimited": "bg-amber-100 text-amber-600",
@@ -103,11 +159,22 @@ const Sidebar = () => {
 
   const getPlanIcon = (planName) => {
     const planIcons = {
+      // Free/Default
       Free: "fa-box",
-      Starter: "fa-rocket",
-      Pro: "fa-crown",
-      Growth: "fa-chart-line",
-      Enterprise: "fa-building",
+
+      // Complyzo Plans
+      "Complyzo FE": "fa-rocket",
+      "Complyzo FE+TURBO": "fa-bolt",
+      "Complyzo Unlimited Silver": "fa-infinity",
+      "Complyzo Unlimited Gold": "fa-crown",
+      "Complyzo Competitor Spy Elite": "fa-eye",
+      "Complyzo Competitor Spy Pro": "fa-eye",
+      "Complyzo AI Ranker": "fa-chart-line",
+      "Complyzo DFY Silver": "fa-wrench",
+      "Complyzo DFY Gold": "fa-wrench",
+      "Complyzo AI Profit Machine": "fa-money-bill-wave",
+
+      // Healtrics Plans (Keep for backward compatibility)
       "Healtrics FE": "fa-box",
       "Healtrics Pro": "fa-crown",
       "Healtrics Unlimited": "fa-infinity",
@@ -119,44 +186,43 @@ const Sidebar = () => {
   // ✅ Helper function to get styles based on active state
   const getNavLinkClass = (isActive) => {
     return `group relative flex items-center px-4 py-2.5 rounded-xl transition-all duration-200 ${
-      isActive 
-        ? "bg-gradient-to-r from-blue-50 to-indigo-50/50 text-indigo-600 shadow-sm" 
+      isActive
+        ? "bg-gradient-to-r from-blue-50 to-indigo-50/50 text-indigo-600 shadow-sm"
         : "text-gray-600 hover:bg-gray-50/80 hover:text-indigo-500"
     }`;
   };
 
   const getIconClass = (isActive) => {
     return `w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
-      isActive 
-        ? "bg-gradient-to-br from-indigo-100 to-blue-100 text-indigo-600" 
+      isActive
+        ? "bg-gradient-to-br from-indigo-100 to-blue-100 text-indigo-600"
         : "bg-gray-100/80 text-gray-400 group-hover:bg-indigo-50/50 group-hover:text-indigo-500"
     }`;
   };
 
   const getAdminNavLinkClass = (isActive) => {
     return `group relative flex items-center px-4 py-2.5 rounded-xl transition-all duration-200 ${
-      isActive 
-        ? "bg-gradient-to-r from-red-50 to-red-100/50 text-red-600 shadow-sm" 
+      isActive
+        ? "bg-gradient-to-r from-red-50 to-red-100/50 text-red-600 shadow-sm"
         : "text-gray-600 hover:bg-red-50/50 hover:text-red-500"
     }`;
   };
 
   const getAdminIconClass = (isActive) => {
     return `w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
-      isActive 
-        ? "bg-red-100 text-red-600" 
+      isActive
+        ? "bg-red-100 text-red-600"
         : "bg-gray-100/80 text-gray-400 group-hover:bg-red-100/50 group-hover:text-red-500"
     }`;
   };
 
   // ✅ Filter nav items based on show condition
-  const visibleNavItems = navItems.filter(item => item.show);
+  const visibleNavItems = navItems.filter((item) => item.show);
 
   return (
     <>
       {/* Desktop Sidebar - Enhanced UI */}
       <aside className="hidden md:flex md:flex-col md:w-72 bg-white shadow-2xl h-screen fixed left-0 top-0 border-r border-gray-100/80">
-        
         {/* Logo Section - Premium */}
         <div className="p-5 border-b border-gray-100/80 flex justify-center">
           <Link to="/" className="inline-block group w-[13rem]">
@@ -191,7 +257,9 @@ const Sidebar = () => {
                     <div className={getAdminIconClass(isActive)}>
                       <i className={`fas ${adminNavItem.icon} text-sm`}></i>
                     </div>
-                    <span className="ml-3 text-base font-medium">{adminNavItem.label}</span>
+                    <span className="ml-3 text-base font-medium">
+                      {adminNavItem.label}
+                    </span>
                     {isActive && (
                       <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-red-500 to-red-600 rounded-r-full"></span>
                     )}
@@ -223,7 +291,9 @@ const Sidebar = () => {
                     <div className={getIconClass(isActive)}>
                       <i className={`fas ${item.icon} text-sm`}></i>
                     </div>
-                    <span className="ml-3 text-base font-medium">{item.label}</span>
+                    <span className="ml-3 text-base font-medium">
+                      {item.label}
+                    </span>
                     {isActive && (
                       <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-indigo-500 to-blue-500 rounded-r-full"></span>
                     )}
@@ -260,17 +330,25 @@ const Sidebar = () => {
                       {user?.email || "No email"}
                     </p>
                   </div>
-                  <i className={`fas fa-chevron-down text-gray-400 text-xs transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
+                  <i
+                    className={`fas fa-chevron-down text-gray-400 text-xs transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
+                  ></i>
                 </div>
 
                 {/* Plan Badge */}
                 <div className="relative mt-2 flex items-center gap-2">
                   {planLoading ? (
-                    <span className="text-[10px] text-gray-400">Loading plan...</span>
+                    <span className="text-[10px] text-gray-400">
+                      Loading plan...
+                    </span>
                   ) : (
-                    <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1 rounded-full ${getPlanColor(planName)}`}>
-                      <i className={`fas ${getPlanIcon(planName)} text-[8px]`}></i>
-                      {planName}
+                    <span
+                      className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1 rounded-full ${getPlanColor(planName)}`}
+                    >
+                      <i
+                        className={`fas ${getPlanIcon(planName)} text-[8px]`}
+                      ></i>
+                      {planName?.replace(/^Complyzo\s+/, '') || planName || 'Free'}
                     </span>
                   )}
                   {user?.role === "admin" && (
@@ -297,7 +375,7 @@ const Sidebar = () => {
 
               {/* Dropdown Menu */}
               {isDropdownOpen && (
-                <div 
+                <div
                   ref={dropdownRef}
                   className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden animate-slide-up"
                 >
@@ -330,7 +408,9 @@ const Sidebar = () => {
                     >
                       <i className="fas fa-sign-out-alt text-sm w-5 text-center"></i>
                       <span className="font-medium">Logout</span>
-                      <span className="ml-auto text-[10px] text-red-400">→</span>
+                      <span className="ml-auto text-[10px] text-red-400">
+                        →
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -349,14 +429,16 @@ const Sidebar = () => {
               to={item.path}
               className={({ isActive }) =>
                 `flex flex-col items-center py-1.5 px-3 rounded-xl transition-all duration-200 ${
-                  isActive 
-                    ? "text-indigo-600 bg-indigo-50/80" 
+                  isActive
+                    ? "text-indigo-600 bg-indigo-50/80"
                     : "text-gray-400 hover:text-gray-600"
                 }`
               }
             >
               <i className={`fas ${item.icon} text-lg`}></i>
-              <span className="text-[9px] font-medium mt-0.5">{item.label.split(" ")[0]}</span>
+              <span className="text-[9px] font-medium mt-0.5">
+                {item.label.split(" ")[0]}
+              </span>
             </NavLink>
           ))}
         </div>
