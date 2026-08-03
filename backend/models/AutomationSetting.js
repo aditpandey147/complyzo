@@ -66,7 +66,6 @@ const automationSettingSchema = new mongoose.Schema({
   }
 });
 
-// ✅ Calculate next scan based on user's timezone (NO pre-save hook)
 automationSettingSchema.methods.calculateNextScan = function() {
   const now = new Date();
   const timezone = this.timezone || 'UTC';
@@ -76,9 +75,9 @@ automationSettingSchema.methods.calculateNextScan = function() {
   console.log(`   Timezone: ${timezone}`);
   console.log(`   Scan time: ${hours}:${minutes}`);
   
-  // Get current time in user's timezone
+  // ✅ Get current time in user's timezone
   const localNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-  console.log(`   Current time in ${timezone}: ${localNow.toISOString()}`);
+  console.log(`   Current time in ${timezone}: ${localNow.toString()}`);
   
   let nextDate = new Date(localNow);
   
@@ -104,15 +103,14 @@ automationSettingSchema.methods.calculateNextScan = function() {
       return null;
   }
   
-  console.log(`   Next scan in ${timezone}: ${nextDate.toISOString()}`);
+  console.log(`   Next scan in ${timezone}: ${nextDate.toString()}`);
   
-  // Convert to UTC for storage
+  // ✅ Convert to UTC for storage
   this.nextScanAt = new Date(nextDate.toISOString());
   console.log(`   Next scan in UTC: ${this.nextScanAt.toISOString()}`);
   
   return this.nextScanAt;
 };
-
 // ❌ NO pre-save hook - removed
 
 module.exports = mongoose.model('AutomationSetting', automationSettingSchema);
