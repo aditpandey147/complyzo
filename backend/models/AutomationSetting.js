@@ -1,4 +1,4 @@
-// models/AutomationSetting.js - Without pre-save hook
+// models/AutomationSetting.js
 const mongoose = require('mongoose');
 
 const automationSettingSchema = new mongoose.Schema({
@@ -19,10 +19,12 @@ const automationSettingSchema = new mongoose.Schema({
     enum: ['daily', 'weekly', 'monthly', 'manual'],
     default: 'manual'
   },
+  // ✅ Timezone field
   timezone: {
     type: String,
-    default: 'Asia/Kolkata'
+    default: 'UTC'
   },
+  // ✅ Scan time field (default 9:00 AM)
   scanTime: {
     type: String,
     default: '09:00',
@@ -64,66 +66,50 @@ const automationSettingSchema = new mongoose.Schema({
   }
 });
 
-// ✅ Calculate next scan based on user's timezone
+// ✅ Calculate next scan based on user's timezone (NO pre-save hook)
 automationSettingSchema.methods.calculateNextScan = function() {
   const now = new Date();
-  const timezone = this.timezone || 'Asia/Kolkata';
+  const timezone = this.timezone || 'UTC';
   const [hours, minutes] = (this.scanTime || '09:00').split(':').map(Number);
   
-  // Get timezone offset
-  let tzOffset = 0;
-  try {
-    const localStr = now.toLocaleString('en-US', { timeZone: timezone });
-    const utcStr = now.toLocaleString('en-US', { timeZone: 'UTC' });
-    const localTime = new Date(localStr).getTime();
-    const utcTime = new Date(utcStr).getTime();
-    tzOffset = (localTime - utcTime) / (1000 * 60);
-  } catch (error) {
-    console.log(`⚠️ Error getting offset for ${timezone}, using UTC`);
+  console.log(`🔍 Calculating next scan:`);
+  console.log(`   Timezone: ${timezone}`);
+  console.log(`   Scan time: ${hours}:${minutes}`);
+  
+  // Get current time in user's timezone
+  const localNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+  console.log(`   Current time in ${timezone}: ${localNow.toISOString()}`);
+  
+  let nextDate = new Date(localNow);
+  
+  switch(this.scanFrequency) {
+    case 'daily':
+      nextDate.setHours(hours, minutes, 0, 0);
+      if (nextDate <= localNow) {
+        nextDate.setDate(nextDate.getDate() + 1);
+      }
+      break;
+    case 'weekly':
+      const daysUntilMonday = (1 - localNow.getDay() + 7) % 7 || 7;
+      nextDate.setDate(localNow.getDate() + daysUntilMonday);
+      nextDate.setHours(hours, minutes, 0, 0);
+      break;
+    case 'monthly':
+      nextDate.setMonth(localNow.getMonth() + 1);
+      nextDate.setDate(1);
+      nextDate.setHours(hours, minutes, 0, 0);
+      break;
+    default:
+      this.nextScanAt = null;
+      return null;
   }
   
-  // Calculate in minutes
-  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
-  const localMinutes = utcMinutes + tzOffset;
-  const targetMinutes = hours * 60 + minutes;
+  console.log(`   Next scan in ${timezone}: ${nextDate.toISOString()}`);
   
-  // Calculate days to add
-  let daysToAdd = 0;
+  // Convert to UTC for storage
+  this.nextScanAt = new Date(nextDate.toISOString());
+  console.log(`   Next scan in UTC: ${this.nextScanAt.toISOString()}`);
   
-  if (this.scanFrequency === 'daily') {
-    if (localMinutes >= targetMinutes) {
-      daysToAdd = 1;
-    }
-  }
-  
-  if (this.scanFrequency === 'weekly') {
-    const localNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-    const daysUntilMonday = (1 - localNow.getDay() + 7) % 7 || 7;
-    daysToAdd = daysUntilMonday;
-    if (localNow.getDay() === 1 && localMinutes >= targetMinutes) {
-      daysToAdd = 7;
-    }
-  }
-  
-  if (this.scanFrequency === 'monthly') {
-    const localNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-    const currentDay = localNow.getDate();
-    const daysInMonth = new Date(localNow.getFullYear(), localNow.getMonth() + 1, 0).getDate();
-    if (currentDay >= 1) {
-      daysToAdd = (daysInMonth - currentDay) + 1;
-    } else {
-      daysToAdd = 0;
-    }
-  }
-  
-  const targetUTC = new Date(now);
-  targetUTC.setUTCDate(targetUTC.getUTCDate() + daysToAdd);
-  targetUTC.setUTCHours(0, 0, 0, 0);
-  
-  const targetUTCMinutes = targetMinutes - tzOffset;
-  targetUTC.setUTCMinutes(targetUTCMinutes);
-  
-  this.nextScanAt = targetUTC;
   return this.nextScanAt;
 };
 
