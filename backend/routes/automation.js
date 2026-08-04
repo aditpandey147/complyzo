@@ -1,4 +1,3 @@
-// routes/automation.js
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
@@ -19,8 +18,6 @@ router.get('/settings', auth, async (req, res) => {
     settings.forEach(setting => {
       settingsMap[setting.websiteId.toString()] = {
         scanFrequency: setting.scanFrequency || 'manual',
-        timezone: setting.timezone || 'UTC',
-        scanTime: setting.scanTime || '09:00',
         notifications: setting.notifications || {
           email: true,
           whatsapp: false,
@@ -43,9 +40,7 @@ router.get('/settings', auth, async (req, res) => {
   }
 });
 
-// ============================================================
-// 💾 SAVE AUTOMATION SETTINGS
-// ============================================================
+// routes/automation.js - Updated save route
 
 router.post('/settings', auth, async (req, res) => {
   try {
@@ -53,10 +48,8 @@ router.post('/settings', auth, async (req, res) => {
     
     console.log('📥 ===== SAVE AUTOMATION SETTINGS =====');
     console.log('👤 User ID:', req.user.id);
-    console.log('📋 Settings received:', JSON.stringify(settings, null, 2));
     
     if (!settings || typeof settings !== 'object') {
-      console.log('❌ Invalid settings data');
       return res.status(400).json({ 
         success: false,
         message: 'Invalid settings data' 
@@ -66,15 +59,11 @@ router.post('/settings', auth, async (req, res) => {
     const results = [];
     
     for (const [websiteId, websiteSettings] of Object.entries(settings)) {
-      console.log(`\n📝 Processing website: ${websiteId}`);
-      console.log(`   Settings:`, JSON.stringify(websiteSettings, null, 2));
+      console.log(`📝 Processing website: ${websiteId}`);
       
       const Website = require('../models/Website');
       const website = await Website.findById(websiteId);
-      if (!website) {
-        console.log(`⚠️ Website not found: ${websiteId}`);
-        continue;
-      }
+      if (!website) continue;
       
       let setting = await AutomationSetting.findOne({
         userId: req.user.id,
@@ -90,12 +79,10 @@ router.post('/settings', auth, async (req, res) => {
         criticalOnly: websiteSettings.notifications?.criticalOnly !== undefined ? websiteSettings.notifications.criticalOnly : true
       };
 
-      // ✅ Get timezone and scan time from request
       const timezone = websiteSettings.timezone || 'UTC';
       const scanTime = websiteSettings.scanTime || '09:00';
 
       if (setting) {
-        console.log(`   ✅ Updating existing setting`);
         setting.scanFrequency = websiteSettings.scanFrequency || 'manual';
         setting.notifications = notifications;
         setting.isActive = isActive;
@@ -112,11 +99,9 @@ router.post('/settings', auth, async (req, res) => {
         }
         
         await setting.save();
-        console.log(`   ✅ Setting saved! ID: ${setting._id}`);
         results.push(setting);
         
       } else {
-        console.log(`   ✅ Creating new setting`);
         const newSetting = new AutomationSetting({
           userId: req.user.id,
           websiteId: websiteId,
@@ -136,13 +121,10 @@ router.post('/settings', auth, async (req, res) => {
         }
         
         await newSetting.save();
-        console.log(`   ✅ New setting saved! ID: ${newSetting._id}`);
         results.push(newSetting);
       }
     }
 
-    console.log(`\n✅ Saved ${results.length} settings`);
-    
     res.json({
       success: true,
       message: 'Automation settings saved successfully',
@@ -151,7 +133,6 @@ router.post('/settings', auth, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Error saving automation settings:', error);
-    console.error('📋 Stack:', error.stack);
     res.status(500).json({ 
       success: false,
       message: 'Failed to save settings',
@@ -177,6 +158,7 @@ router.get('/stats', auth, async (req, res) => {
       isActive: true
     });
     
+    // Get recent logs if model exists
     let recentScans = [];
     try {
       recentScans = await AutomationLog.find({
