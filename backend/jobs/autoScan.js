@@ -1,3 +1,4 @@
+// jobs/autoScan.js
 require('dotenv').config();
 const cron = require('node-cron');
 const AutomationSetting = require('../models/AutomationSetting');
@@ -6,29 +7,50 @@ const Website = require('../models/Website');
 const scanner = require('../utils/websiteScanner');
 const { sendEmailAlert } = require('../utils/emailService');
 
-/**
- * Run all automated scans
- */
-async function runAutoScans() {
-  console.log('\n🔄 Running automated scans...');
-  console.log(`📅 Time: ${new Date().toLocaleString()}`);
+// ✅ NEW: Check if it's time to run in user's timezone
+const shouldRunNow = (setting) => {
+  const timezone = setting.timezone || 'UTC';
+  const scanTime = setting.scanTime || '09:00';
+  const [hours, minutes] = scanTime.split(':').map(Number);
   
   try {
-    // Find all active automation settings where nextScanAt is due
+    const localNow = new Date(new Date().toLocaleString('en-US', { timeZone: timezone }));
+    const currentMinutes = localNow.getHours() * 60 + localNow.getMinutes();
+    const targetMinutes = hours * 60 + minutes;
+    const diff = Math.abs(currentMinutes - targetMinutes);
+    
+    return diff <= 5; // Run if within 5 minutes
+  } catch (error) {
+    console.error(`Error checking time for ${timezone}:`, error.message);
+    return false;
+  }
+};
+
+// ✅ UPDATED: Run all scans - checks each user's timezone
+async function runAutoScans() {
+  console.log('\n🔄 Running automated scans...');
+  console.log(`📅 UTC Time: ${new Date().toISOString()}`);
+  
+  try {
     const settings = await AutomationSetting.find({
       isActive: true,
-      scanFrequency: { $ne: 'manual' },
-      nextScanAt: { $lte: new Date() }
+      scanFrequency: { $ne: 'manual' }
     });
 
-    console.log(`📋 Found ${settings.length} due automation settings`);
+    console.log(`📋 Found ${settings.length} active automations`);
+
+    let dueCount = 0;
 
     for (const setting of settings) {
-      try {
+      if (shouldRunNow(setting)) {
+        dueCount++;
+        console.log(`⏰ Running scan for ${setting.websiteId} at ${setting.timezone || 'UTC'} time`);
         await runAutomatedScan(setting);
-      } catch (error) {
-        console.error(`❌ Error running scan for setting ${setting._id}:`, error);
       }
+    }
+
+    if (dueCount === 0) {
+      console.log('📋 No due automation settings at this time');
     }
 
     console.log('✅ Automated scans completed\n');
@@ -38,14 +60,13 @@ async function runAutoScans() {
   }
 }
 
-/**
- * Run a single automated scan
- */
+// ✅ KEEP: Run a single scan (no changes)
 async function runAutomatedScan(setting) {
   console.log(`\n🔍 Running automated scan for setting: ${setting._id}`);
   console.log(`   Website ID: ${setting.websiteId}`);
   console.log(`   User ID: ${setting.userId}`);
   console.log(`   Frequency: ${setting.scanFrequency}`);
+  console.log(`   Timezone: ${setting.timezone || 'UTC'}`);
 
   const log = new AutomationLog({
     userId: setting.userId,
@@ -63,7 +84,6 @@ async function runAutomatedScan(setting) {
 
     console.log(`   🌐 URL: ${website.url}`);
 
-    // Run the scan
     const scanResults = await scanner.scanWebsite(website.url, { 
       maxPages: 10, 
       scanDepth: 2 
@@ -77,22 +97,19 @@ async function runAutomatedScan(setting) {
     await log.save();
     console.log(`   ✅ Scan completed: ${scanResults.pagesScanned} pages, ${log.issuesFound} issues found`);
 
-    // Send email notification if there are issues
+    // Send email if needed
     if (scanResults.issues && scanResults.issues.length > 0) {
       const criticalIssues = scanResults.issues.filter(i => i.severity === 'Critical');
+      const shouldSendEmail = setting.notifications?.email !== false;
+      const isCriticalOnly = setting.notifications?.criticalOnly === true;
       
-      if (!setting.notifications.criticalOnly || criticalIssues.length > 0) {
+      if (shouldSendEmail && (!isCriticalOnly || criticalIssues.length > 0)) {
         console.log(`   📧 Sending email notification...`);
-        await sendEmailAlert(
-          setting.userId,
-          website.url,
-          scanResults.issues
-        );
+        await sendEmailAlert(setting.userId, website.url, scanResults.issues);
         console.log(`   ✅ Email sent`);
       }
     }
 
-    // Update the setting
     setting.lastScanAt = new Date();
     setting.calculateNextScan();
     await setting.save();
@@ -109,28 +126,24 @@ async function runAutomatedScan(setting) {
   }
 }
 
-/**
- * Initialize the cron job for daily 9 AM scans
- */
+// ✅ UPDATED: Run every minute (instead of fixed 9:00 AM)
 function initializeAutoScans() {
   console.log('🔄 Initializing auto-scan scheduler...');
   
-  // ✅ Schedule for 9:00 AM daily
-  cron.schedule('0 9 * * *', async () => {
-    console.log('\n⏰ Running scheduled auto-scan at 9:00 AM');
+  // ✅ Run every minute
+  cron.schedule('* * * * *', async () => {
     await runAutoScans();
   });
 
   console.log('✅ Auto-scan scheduler initialized');
-  console.log('📅 Daily scan scheduled for 9:00 AM');
-  console.log('📋 Weekly scan scheduled for Monday 9:00 AM');
-  console.log('📋 Monthly scan scheduled for 1st of month 9:00 AM');
+  console.log('📅 Checking every minute for user timezones');
+  console.log('⏰ Each user\'s scan will run at their local 9:00 AM');
   
-  // Also run once on startup to catch any missed scans
+  // Run once on startup for catch-up
   setTimeout(async () => {
     console.log('\n🔍 Running initial catch-up scan...');
     await runAutoScans();
-  }, 10000); // Wait 10 seconds for server to fully start
+  }, 10000);
 }
 
 module.exports = { 
