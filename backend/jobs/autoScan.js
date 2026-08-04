@@ -7,26 +7,39 @@ const Website = require('../models/Website');
 const scanner = require('../utils/websiteScanner');
 const { sendEmailAlert } = require('../utils/emailService');
 
-// ✅ NEW: Check if it's time to run in user's timezone
+// ✅ FIXED: Check if it's time to run (prevents repeated runs)
 const shouldRunNow = (setting) => {
-  const timezone = setting.timezone || 'UTC';
-  const scanTime = setting.scanTime || '09:00';
-  const [hours, minutes] = scanTime.split(':').map(Number);
+  const now = new Date();
+  const nextScanAt = setting.nextScanAt;
   
-  try {
-    const localNow = new Date(new Date().toLocaleString('en-US', { timeZone: timezone }));
-    const currentMinutes = localNow.getHours() * 60 + localNow.getMinutes();
-    const targetMinutes = hours * 60 + minutes;
-    const diff = Math.abs(currentMinutes - targetMinutes);
+  if (!nextScanAt) return false;
+  
+  const nextScanTime = new Date(nextScanAt);
+  const timeDiff = (now - nextScanTime) / 1000; // Difference in seconds
+  
+  // ✅ Run if nextScanAt is within the last 5 minutes (0-300 seconds)
+  if (timeDiff >= 0 && timeDiff <= 300) {
+    // ✅ Check if already ran today
+    if (setting.lastScanAt) {
+      const lastScan = new Date(setting.lastScanAt);
+      const lastScanDate = lastScan.toDateString();
+      const todayDate = now.toDateString();
+      
+      // ✅ If already ran today, skip
+      if (lastScanDate === todayDate) {
+        console.log(`   ⏭️ Already ran today, skipping`);
+        return false;
+      }
+    }
     
-    return diff <= 5; // Run if within 5 minutes
-  } catch (error) {
-    console.error(`Error checking time for ${timezone}:`, error.message);
-    return false;
+    console.log(`   ✅ Scan is due! (${nextScanAt})`);
+    return true;
   }
+  
+  return false;
 };
 
-// ✅ UPDATED: Run all scans - checks each user's timezone
+// ✅ UPDATED: Run all scans
 async function runAutoScans() {
   console.log('\n🔄 Running automated scans...');
   console.log(`📅 UTC Time: ${new Date().toISOString()}`);
@@ -110,6 +123,7 @@ async function runAutomatedScan(setting) {
       }
     }
 
+    // ✅ Update lastScanAt and recalculate next scan
     setting.lastScanAt = new Date();
     setting.calculateNextScan();
     await setting.save();
@@ -126,7 +140,7 @@ async function runAutomatedScan(setting) {
   }
 }
 
-// ✅ UPDATED: Run every minute (instead of fixed 9:00 AM)
+// ✅ Initialize auto-scan scheduler
 function initializeAutoScans() {
   console.log('🔄 Initializing auto-scan scheduler...');
   
@@ -136,8 +150,8 @@ function initializeAutoScans() {
   });
 
   console.log('✅ Auto-scan scheduler initialized');
-  console.log('📅 Checking every minute for user timezones');
-  console.log('⏰ Each user\'s scan will run at their local 9:00 AM');
+  console.log('📅 Checking every minute for due scans');
+  console.log('⏰ Scans run when nextScanAt is due (within 5-minute window)');
   
   // Run once on startup for catch-up
   setTimeout(async () => {
