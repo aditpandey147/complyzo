@@ -17,7 +17,6 @@ const getPlatform = () => {
   return platform;
 };
 
-
 // JVZoo V2 Signature
 const verifyV2Signature = (data, secretKey) => {
   const stringToHash = [
@@ -119,19 +118,20 @@ const mapLaunchPadToStandard = (lpData) => {
 
 // ============================================================
 // 🎯 GET PLAN BY PRODUCT ID - DATABASE ONLY
+// ✅ Returns found: false if no plan found
 // ============================================================
 
 const getPlanByProductId = async (productId, platform) => {
   try {
     if (!productId) {
-      console.log('⚠️ No product ID provided, using default plan');
-      const defaultPlan = await Plan.findOne({ status: 'active' }).sort({ planId: 1 });
+      console.log('⚠️ No product ID provided');
       return {
-        plan: defaultPlan,
-        planName: defaultPlan?.name || 'Free',
-        planId: defaultPlan?.planId || 1,
-        productId: productId,
-        validityDays: defaultPlan?.validity_days || 365
+        plan: null,
+        planName: null,
+        planId: null,
+        productId: null,
+        validityDays: null,
+        found: false
       };
     }
 
@@ -159,72 +159,31 @@ const getPlanByProductId = async (productId, platform) => {
         planName: plan.name,
         planId: plan.planId,
         validityDays: plan.validity_days || 365,
-        productId: productIdStr
+        productId: productIdStr,
+        found: true
       };
     }
 
-    console.log(`⚠️ No plan found for "${productIdStr}", using default plan`);
-    const defaultPlan = await Plan.findOne({ status: 'active' }).sort({ planId: 1 });
+    console.log(`❌ No plan found for "${productIdStr}"`);
     
-    if (!defaultPlan) {
-      console.error('❌ No default plan found in database!');
-      const newDefaultPlan = new Plan({
-        name: 'Free',
-        slug: 'free',
-        planId: 1,
-        validity_days: 365,
-        status: 'active'
-      });
-      await newDefaultPlan.save();
-      console.log('✅ Created default Free plan');
-      
-      return {
-        plan: newDefaultPlan,
-        planName: 'Free',
-        planId: 1,
-        validityDays: 365,
-        productId: productIdStr
-      };
-    }
-
     return {
-      plan: defaultPlan,
-      planName: defaultPlan?.name || 'Free',
-      planId: defaultPlan?.planId || 1,
-      validityDays: defaultPlan?.validity_days || 365,
-      productId: productIdStr
+      plan: null,
+      planName: null,
+      planId: null,
+      productId: productIdStr,
+      validityDays: null,
+      found: false
     };
   } catch (error) {
     console.error('❌ Error finding plan:', error);
-    try {
-      let defaultPlan = await Plan.findOne({ status: 'active' }).sort({ planId: 1 });
-      if (!defaultPlan) {
-        defaultPlan = new Plan({
-          name: 'Free',
-          slug: 'free',
-          planId: 1,
-          validity_days: 365,
-          status: 'active'
-        });
-        await defaultPlan.save();
-      }
-      return {
-        plan: defaultPlan,
-        planName: defaultPlan?.name || 'Free',
-        planId: defaultPlan?.planId || 1,
-        validityDays: defaultPlan?.validity_days || 365,
-        productId: productId
-      };
-    } catch (err) {
-      console.error('❌ Failed to get/create default plan:', err);
-      return {
-        plan: null,
-        planName: 'Free',
-        planId: 1,
-        validityDays: 365,
-        productId: productId
-      };
-    }
+    return {
+      plan: null,
+      planName: null,
+      planId: null,
+      productId: productId,
+      validityDays: null,
+      found: false
+    };
   }
 };
 
@@ -488,7 +447,45 @@ router.post('/ipn', async (req, res) => {
     // 🎯 GET PLAN FROM DATABASE
     // ============================================================
     const planInfo = await getPlanByProductId(productId, platform);
-    
+
+    // ✅ CHECK IF PLAN WAS FOUND - If not, reject without creating account
+    if (!planInfo.found || !planInfo.plan) {
+      console.log(`❌ Product ${productId} not found in database. Account NOT created.`);
+      
+      // ✅ Save failed payment record
+      try {
+        const failedPayment = new Payment({
+          transactionId: transactionId,
+          userId: null,
+          buyerEmail: email,
+          buyerName: name,
+          productId: String(productId || ''),
+          productName: data.product_name || 'Unknown Product',
+          amount: amount || 0,
+          currency: 'USD',
+          status: 'failed',
+          paymentDate: new Date(),
+          ipnData: data,
+          purchasedPlanId: null,
+          purchasedPlanName: null,
+          validityDays: null,
+          platform: platform,
+          errorMessage: `Product ${productId} not found in database`
+        });
+        await failedPayment.save();
+        console.log('💾 Failed payment record saved');
+      } catch (error) {
+        console.error('Failed to save payment record:', error);
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: `Product ${productId} not found in database. Please contact support.`,
+        productId: productId,
+        platform: platform
+      });
+    }
+
     console.log('✅ Product Recognized from Database:');
     console.log(`   🔑 Product ID: ${productId}`);
     console.log(`   📦 Plan: ${planInfo.planName} (planId: ${planInfo.planId})`);
@@ -496,7 +493,7 @@ router.post('/ipn', async (req, res) => {
     console.log(`   🏷️ Platform: ${platform}`);
 
     // ============================================================
-    // 👤 CREATE OR UPDATE USER
+    // 👤 CREATE OR UPDATE USER (Only if plan was found)
     // ============================================================
     let user = await User.findOne({ email: email });
     let isNewUser = false;
