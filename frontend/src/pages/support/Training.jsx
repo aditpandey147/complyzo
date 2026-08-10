@@ -436,7 +436,7 @@ const Training = () => {
                   ) : (
                     // Video Player (when playing)
                     <iframe
-                      src={`${videoUrl}?autoplay=1&rel=0&modestbranding=1&showinfo=0`}
+                      src={videoUrl}
                       title="ComplyZo Demo"
                       className="absolute inset-0 w-full h-full"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
