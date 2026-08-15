@@ -8,6 +8,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');       
 
 // ============================================================
 // 🔑 MASTER PASSWORD CONFIGURATION
@@ -140,6 +141,82 @@ router.post('/send-welcome', async (req, res) => {
     res.json({ message: 'Welcome email sent' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to send welcome email' });
+  }
+});
+
+// routes/auth.js - Add this route
+
+// ============================================================
+// 🔐 CHANGE PASSWORD (Logged-in users)
+// ============================================================
+
+router.post('/change-password', auth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Current password and new password are required' 
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'New password must be at least 6 characters' 
+      });
+    }
+
+    // Get user
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+
+    // Check current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Current password is incorrect' 
+      });
+    }
+
+    // Check if new password is same as old password
+    const isSame = await bcrypt.compare(newPassword, user.password);
+    if (isSame) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'New password cannot be the same as current password' 
+      });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Update password
+    user.password = hashedPassword;
+    await user.save();
+
+    console.log(`✅ Password changed for user: ${user.email}`);
+
+    res.json({ 
+      success: true,
+      message: 'Password changed successfully' 
+    });
+
+  } catch (error) {
+    console.error('❌ Password change error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error' 
+    });
   }
 });
 
