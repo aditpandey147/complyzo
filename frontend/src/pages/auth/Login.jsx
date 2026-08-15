@@ -404,9 +404,6 @@ const Login = () => {
             <span className="flex items-center gap-1">
               <span className="text-green-500">✓</span> 24/7 Support
             </span>
-            <span className="flex items-center gap-1">
-              <span className="text-green-500">✓</span> Free Trial
-            </span>
           </div>
         </div>
       </div>
