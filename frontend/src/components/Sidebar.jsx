@@ -147,12 +147,6 @@ const Sidebar = () => {
       "Complyzo DFY Silver": "bg-gray-300 text-gray-800",
       "Complyzo DFY Gold": "bg-yellow-100 text-yellow-700",
       "Complyzo AI Profit Machine": "bg-rose-100 text-rose-600",
-
-      // Healtrics Plans (Keep for backward compatibility)
-      "Healtrics FE": "bg-blue-100 text-blue-600",
-      "Healtrics Pro": "bg-purple-100 text-purple-600",
-      "Healtrics Unlimited": "bg-amber-100 text-amber-600",
-      Healtric: "bg-blue-100 text-blue-600",
     };
     return planColors[planName] || "bg-gray-100 text-gray-600";
   };
