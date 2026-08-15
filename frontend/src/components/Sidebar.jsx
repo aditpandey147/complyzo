@@ -112,8 +112,24 @@ const Sidebar = () => {
       icon: "fa-graduation-cap",
       label: "Training",
       show: true,
+      target: "_blank",
     },
-    { path: "/support", icon: "fa-headset", label: "Support", show: true },
+    {
+      path: "/upgrades",
+      icon: "fa-rocket",
+      label: "Upgrades",
+      show: true,
+      target: "_blank",
+      external: true,
+      href: "https://getcomplyzo.com/upgrades",
+    },
+    {
+      path: "/support",
+      icon: "fa-headset",
+      label: "Support",
+      show: true,
+      target: "_blank",
+    },
   ];
 
   const adminNavItem = {
@@ -133,10 +149,7 @@ const Sidebar = () => {
 
   const getPlanColor = (planName) => {
     const planColors = {
-      // Free/Default
       Free: "bg-gray-100 text-gray-600",
-
-      // Complyzo Plans
       "Complyzo FE": "bg-blue-100 text-blue-600",
       "Complyzo FE+TURBO": "bg-indigo-100 text-indigo-600",
       "Complyzo Unlimited Silver": "bg-gray-200 text-gray-700",
@@ -153,10 +166,7 @@ const Sidebar = () => {
 
   const getPlanIcon = (planName) => {
     const planIcons = {
-      // Free/Default
       Free: "fa-box",
-
-      // Complyzo Plans
       "Complyzo FE": "fa-rocket",
       "Complyzo FE+TURBO": "fa-bolt",
       "Complyzo Unlimited Silver": "fa-infinity",
@@ -167,17 +177,10 @@ const Sidebar = () => {
       "Complyzo DFY Silver": "fa-wrench",
       "Complyzo DFY Gold": "fa-wrench",
       "Complyzo AI Profit Machine": "fa-money-bill-wave",
-
-      // Healtrics Plans (Keep for backward compatibility)
-      "Healtrics FE": "fa-box",
-      "Healtrics Pro": "fa-crown",
-      "Healtrics Unlimited": "fa-infinity",
-      Healtric: "fa-box",
     };
     return planIcons[planName] || "fa-box";
   };
 
-  // ✅ Helper function to get styles based on active state
   const getNavLinkClass = (isActive) => {
     return `group relative flex items-center px-4 py-2.5 rounded-xl transition-all duration-200 ${
       isActive
@@ -210,14 +213,18 @@ const Sidebar = () => {
     }`;
   };
 
-  // ✅ Filter nav items based on show condition
   const visibleNavItems = navItems.filter((item) => item.show);
+
+  // ✅ Check if item is external (opens in new tab)
+  const isExternalLink = (item) => {
+    return item.external === true;
+  };
 
   return (
     <>
-      {/* Desktop Sidebar - Enhanced UI */}
+      {/* Desktop Sidebar */}
       <aside className="hidden md:flex md:flex-col md:w-72 bg-white shadow-2xl h-screen fixed left-0 top-0 border-r border-gray-100/80">
-        {/* Logo Section - Premium */}
+        {/* Logo Section */}
         <div className="p-5 border-b border-gray-100/80 flex justify-center">
           <Link to="/" className="inline-block group w-[13rem]">
             <img src={logo} alt="complyzo by albinolabs" />
@@ -230,7 +237,7 @@ const Sidebar = () => {
           )}
         </div>
 
-        {/* Navigation Links - Premium */}
+        {/* Navigation Links */}
         <nav className="flex-1 mt-3 px-3 overflow-y-auto">
           {/* Admin Panel Link */}
           {user?.role === "admin" && (
@@ -272,37 +279,59 @@ const Sidebar = () => {
             </div>
           )}
 
-          {/* Main Navigation - Enhanced */}
+          {/* Main Navigation */}
           <div className="space-y-1">
-            {visibleNavItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) => getNavLinkClass(isActive)}
-              >
-                {({ isActive }) => (
-                  <>
-                    <div className={getIconClass(isActive)}>
+            {visibleNavItems.map((item) => {
+              // ✅ Render external link with <a> tag
+              if (isExternalLink(item)) {
+                return (
+                  <a
+                    key={item.path}
+                    href={item.href}
+                    target={item.target || "_blank"}
+                    rel="noopener noreferrer"
+                    className={getNavLinkClass(false)}
+                  >
+                    <div className={getIconClass(false)}>
                       <i className={`fas ${item.icon} text-sm`}></i>
                     </div>
                     <span className="ml-3 text-base font-medium">
                       {item.label}
                     </span>
-                    {isActive && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-indigo-500 to-blue-500 rounded-r-full"></span>
-                    )}
-                  </>
-                )}
-              </NavLink>
-            ))}
+                  </a>
+                );
+              }
+
+              // ✅ Render internal link with NavLink
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) => getNavLinkClass(isActive)}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <div className={getIconClass(isActive)}>
+                        <i className={`fas ${item.icon} text-sm`}></i>
+                      </div>
+                      <span className="ml-3 text-base font-medium">
+                        {item.label}
+                      </span>
+                      {isActive && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-indigo-500 to-blue-500 rounded-r-full"></span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
           </div>
         </nav>
 
-        {/* User Info - Premium Footer with Dropdown */}
+        {/* User Info */}
         <div className="p-4 mt-auto border-t border-gray-100/80 bg-gradient-to-b from-white to-gray-50/50">
           {user && (
             <div className="relative">
-              {/* User Profile Button - Click to toggle dropdown */}
               <button
                 onClick={toggleDropdown}
                 className="w-full text-left p-3 bg-white rounded-xl shadow-sm border border-gray-100/80 hover:shadow-md transition-all duration-200 group"
@@ -342,7 +371,9 @@ const Sidebar = () => {
                       <i
                         className={`fas ${getPlanIcon(planName)} text-[8px]`}
                       ></i>
-                      {planName?.replace(/^Complyzo\s+/, '') || planName || 'Free'}
+                      {planName?.replace(/^Complyzo\s+/, "") ||
+                        planName ||
+                        "Free"}
                     </span>
                   )}
                   {user?.role === "admin" && (
@@ -351,7 +382,6 @@ const Sidebar = () => {
                       Admin
                     </span>
                   )}
-                  {/* ✅ Show Level Badge */}
                   {planLevel >= 2 && planLevel < 3 && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
                       <i className="fas fa-crown text-[8px]"></i>
@@ -383,7 +413,6 @@ const Sidebar = () => {
                       <span className="font-medium">Settings</span>
                     </NavLink>
 
-                    {/* Support Link */}
                     <NavLink
                       to="/support"
                       onClick={() => setIsDropdownOpen(false)}
@@ -395,7 +424,6 @@ const Sidebar = () => {
 
                     <div className="h-px bg-gray-100 my-1"></div>
 
-                    {/* Logout Button */}
                     <button
                       onClick={handleLogout}
                       className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-all duration-200"
@@ -414,27 +442,45 @@ const Sidebar = () => {
         </div>
       </aside>
 
-      {/* Mobile Bottom Navigation - Enhanced */}
+      {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-gray-200/80 shadow-lg z-50">
         <div className="flex justify-around items-center py-2 px-2">
-          {visibleNavItems.slice(0, 5).map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex flex-col items-center py-1.5 px-3 rounded-xl transition-all duration-200 ${
-                  isActive
-                    ? "text-indigo-600 bg-indigo-50/80"
-                    : "text-gray-400 hover:text-gray-600"
-                }`
-              }
-            >
-              <i className={`fas ${item.icon} text-lg`}></i>
-              <span className="text-[9px] font-medium mt-0.5">
-                {item.label.split(" ")[0]}
-              </span>
-            </NavLink>
-          ))}
+          {visibleNavItems.slice(0, 5).map((item) => {
+            if (isExternalLink(item)) {
+              return (
+                <a
+                  key={item.path}
+                  href={item.href}
+                  target={item.target || "_blank"}
+                  rel="noopener noreferrer"
+                  className="flex flex-col items-center py-1.5 px-3 rounded-xl transition-all duration-200 text-gray-400 hover:text-gray-600"
+                >
+                  <i className={`fas ${item.icon} text-lg`}></i>
+                  <span className="text-[9px] font-medium mt-0.5">
+                    {item.label.split(" ")[0]}
+                  </span>
+                </a>
+              );
+            }
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) =>
+                  `flex flex-col items-center py-1.5 px-3 rounded-xl transition-all duration-200 ${
+                    isActive
+                      ? "text-indigo-600 bg-indigo-50/80"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`
+                }
+              >
+                <i className={`fas ${item.icon} text-lg`}></i>
+                <span className="text-[9px] font-medium mt-0.5">
+                  {item.label.split(" ")[0]}
+                </span>
+              </NavLink>
+            );
+          })}
         </div>
       </nav>
 
