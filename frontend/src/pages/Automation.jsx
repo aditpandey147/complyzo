@@ -613,7 +613,7 @@ const Automation = () => {
                             Notifications
                           </h2>
                         </div>
-                        <div className="flex gap-2">
+                        {/* <div className="flex gap-2">
                           <button
                             onClick={() => testNotification("email")}
                             disabled={testing}
@@ -622,7 +622,7 @@ const Automation = () => {
                             <i className="fas fa-envelope mr-1"></i>
                             <span className="hidden sm:inline">Test Email</span>
                           </button>
-                        </div>
+                        </div> */}
                       </div>
 
                       <div className="space-y-3">
